@@ -1,16 +1,10 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": true
-  },
-  "include": ["src/**/*"],
-  "references": [
-    { "path": "../local-ai" },
-    { "path": "../rules-engine" },
-    { "path": "../tree-sitter-parser" },
-    { "path": "../vectordb" }
-  ]
+    "strict": true,
+    "esModuleInterop": true
+  }
 }
-

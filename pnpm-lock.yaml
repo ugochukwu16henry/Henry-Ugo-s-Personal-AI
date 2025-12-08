@@ -153,39 +153,16 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@20.19.26)
 
-  packages/core:
-    dependencies:
-      '@henry-ai/local-ai':
-        specifier: workspace:*
-        version: link:../local-ai
-      '@henry-ai/rules-engine':
-        specifier: workspace:*
-        version: link:../rules-engine
-      '@henry-ai/tree-sitter-parser':
-        specifier: workspace:*
-        version: link:../tree-sitter-parser
-      '@henry-ai/vectordb':
-        specifier: workspace:*
-        version: link:../vectordb
-    devDependencies:
-      '@types/node':
-        specifier: ^20.10.0
-        version: 20.19.26
-      typescript:
-        specifier: ^5.3.3
-        version: 5.9.3
-      vitest:
-        specifier: ^1.1.0
-        version: 1.6.1(@types/node@20.19.26)
+  packages/core: {}
 
   packages/local-ai:
     dependencies:
       axios:
-        specifier: ^1.6.2
+        specifier: ^1.13.2
         version: 1.13.2
     devDependencies:
       '@types/node':
-        specifier: ^20.10.0
+        specifier: ^20.19.26
         version: 20.19.26
       typescript:
         specifier: ^5.3.3

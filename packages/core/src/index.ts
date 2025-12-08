@@ -1,6 +1,3 @@
-// Core exports
-export * from './agent'
-export * from './indexer'
-export * from './ai-router'
-export * from './tools'
-export * from './types'
+// Placeholder
+
+export const hello = () => "Henry Ugo's Personal AI core ready!";

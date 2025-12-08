@@ -1,31 +1,9 @@
 {
   "name": "@henry-ai/core",
-  "version": "1.0.0",
-  "description": "Core shared logic: agent, indexer, AI router",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@henry-ai/local-ai": "workspace:*",
-    "@henry-ai/rules-engine": "workspace:*",
-    "@henry-ai/tree-sitter-parser": "workspace:*",
-    "@henry-ai/vectordb": "workspace:*"
-  },
-  "devDependencies": {
-    "@types/node": "^20.10.0",
-    "typescript": "^5.3.3",
-    "vitest": "^1.1.0"
+    "build": "tsc --build"
   }
 }
-
