@@ -1,0 +1,46 @@
+{
+  "name": "henry-ugo-ai",
+  "version": "1.0.0",
+  "description": "Henry Ugo's Personal AI - A next-generation, local-first, ultra-fast, privacy-respecting, agentic code editor",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:desktop": "turbo run dev --filter=@henry-ai/desktop",
+    "dev:web": "turbo run dev --filter=@henry-ai/web",
+    "dev:cli": "turbo run dev --filter=@henry-ai/cli",
+    "build": "turbo run build",
+    "build:desktop": "turbo run build --filter=@henry-ai/desktop",
+    "build:web": "turbo run build --filter=@henry-ai/web",
+    "build:cli": "turbo run build --filter=@henry-ai/cli",
+    "test": "turbo run test",
+    "test:ui": "turbo run test:ui",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean"
+  },
+  "keywords": [
+    "ai",
+    "code-editor",
+    "local-first",
+    "privacy",
+    "agentic",
+    "cursor-alternative"
+  ],
+  "author": "Henry Ugo",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "turbo": "^1.11.2",
+    "typescript": "^5.3.3"
+  },
+  "packageManager": "pnpm@8.15.0"
+}
+

@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "composite": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@henry-ai/core": ["./packages/core/src"],
+      "@henry-ai/local-ai": ["./packages/local-ai/src"],
+      "@henry-ai/rules-engine": ["./packages/rules-engine/src"],
+      "@henry-ai/tree-sitter-parser": ["./packages/tree-sitter-parser/src"],
+      "@henry-ai/vectordb": ["./packages/vectordb/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "**/dist", "**/target"]
+}
+

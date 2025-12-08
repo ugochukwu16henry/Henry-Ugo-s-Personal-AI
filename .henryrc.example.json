@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "team": {
+    "members": ["Henry Ugo", "Kolawole"],
+    "sharedRules": [
+      "Always use TypeScript",
+      "Follow MVC pattern",
+      "Include Swagger documentation for all endpoints",
+      "Use OAuth2 for authentication"
+    ]
+  },
+  "ai": {
+    "preferredModel": "local",
+    "fallbackModel": "openai"
+  },
+  "code": {
+    "style": "Airbnb",
+    "namingConvention": "camelCase",
+    "indentSize": 2
+  },
+  "commands": {
+    "/pr": "Generate pull request description",
+    "/doc": "Generate Swagger documentation",
+    "/test": "Generate unit tests"
+  }
+}
+
