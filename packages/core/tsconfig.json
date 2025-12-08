@@ -8,7 +8,9 @@
   "include": ["src/**/*"],
   "references": [
     { "path": "../local-ai" },
-    { "path": "../rules-engine" }
+    { "path": "../rules-engine" },
+    { "path": "../tree-sitter-parser" },
+    { "path": "../vectordb" }
   ]
 }
 

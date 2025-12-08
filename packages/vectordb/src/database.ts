@@ -1,7 +1,7 @@
 // Note: LanceDB Node.js client - adjust import based on actual package
 // import { connect } from 'lancedb' or similar
 // Placeholder for now - will use actual LanceDB client when available
-const connect = async (path: string) => {
+const connect = async (_path: string) => {
   // Placeholder implementation
   return {
     createTable: async () => ({}),

@@ -1,4 +1,4 @@
-import type { AgentTask, AgentStep, CodeContext, AIRequest } from './types'
+import type { AgentTask, AgentStep, CodeContext } from './types'
 import { AIRouter } from './ai-router'
 import { CodeIndexer } from './indexer'
 import { ToolRegistry, createStandardTools, type Tool } from './tools'
@@ -9,13 +9,11 @@ import { ToolRegistry, createStandardTools, type Tool } from './tools'
  */
 export class Agent {
   private router: AIRouter
-  private indexer: CodeIndexer
   private tasks: Map<string, AgentTask> = new Map()
   private toolRegistry: ToolRegistry
 
-  constructor(router: AIRouter, indexer: CodeIndexer) {
+  constructor(router: AIRouter, _indexer: CodeIndexer) {
     this.router = router
-    this.indexer = indexer
     this.toolRegistry = new ToolRegistry()
     
     // Register standard tools
@@ -102,7 +100,7 @@ Format: [{"action": "read_file", "target": "path/to/file", "parameters": {"path"
     this.toolRegistry.register(tool)
   }
 
-  private async executeStep(step: AgentStep, context?: CodeContext): Promise<void> {
+  private async executeStep(step: AgentStep, _context?: CodeContext): Promise<void> {
     try {
       switch (step.action) {
         case 'read':
@@ -127,27 +125,27 @@ Format: [{"action": "read_file", "target": "path/to/file", "parameters": {"path"
     }
   }
 
-  private async readFile(path: string): Promise<string> {
+  private async readFile(_path: string): Promise<string> {
     // TODO: Implement file reading
     return ''
   }
 
-  private async writeFile(path: string, content: string): Promise<string> {
+  private async writeFile(_path: string, _content: string): Promise<string> {
     // TODO: Implement file writing with sandboxing
     return 'File written'
   }
 
-  private async editFile(path: string, changes: string): Promise<string> {
+  private async editFile(_path: string, _changes: string): Promise<string> {
     // TODO: Implement file editing with undo stack
     return 'File edited'
   }
 
-  private async runTests(path: string): Promise<string> {
+  private async runTests(_path: string): Promise<string> {
     // TODO: Implement test execution
     return 'Tests passed'
   }
 
-  private async generateDocs(path: string): Promise<string> {
+  private async generateDocs(_path: string): Promise<string> {
     // TODO: Implement documentation generation
     return 'Docs generated'
   }

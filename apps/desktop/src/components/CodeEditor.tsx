@@ -35,7 +35,6 @@ export function CodeEditor({
       renderWhitespace: 'selection',
       // Performance optimizations
       renderLineHighlight: 'gutter',
-      renderIndentGuides: true,
       quickSuggestions: {
         other: true,
         comments: true,

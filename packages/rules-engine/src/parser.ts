@@ -1,7 +1,6 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import * as yaml from 'js-yaml'
-import { z } from 'zod'
 import type { HenryConfig } from './types'
 import { HenryConfigSchema } from './types'
 

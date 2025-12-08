@@ -136,14 +136,16 @@ export class CodeIndexer {
         file.path
       )
 
-      return result.symbols.map(s => ({
-        name: s.name,
-        type: s.type,
-        file: s.file,
-        line: s.line,
-        column: s.column,
-        signature: s.signature
-      }))
+      return result.symbols
+        .filter(s => s.type === 'function' || s.type === 'class' || s.type === 'interface' || s.type === 'variable' || s.type === 'type')
+        .map(s => ({
+          name: s.name,
+          type: s.type as 'function' | 'class' | 'interface' | 'variable' | 'type',
+          file: s.file,
+          line: s.line,
+          column: s.column,
+          signature: s.signature
+        }))
     } catch (error) {
       console.warn(`Failed to parse ${file.path} with Tree-sitter:`, error)
       return this.extractSymbols(file)
@@ -180,12 +182,12 @@ export class CodeIndexer {
     }
   }
 
-  private async extractSymbols(file: CodeFile): Promise<Symbol[]> {
+  private async extractSymbols(_file: CodeFile): Promise<Symbol[]> {
     // Fallback regex-based extraction
     return []
   }
 
-  private async extractDependencies(file: CodeFile): Promise<Dependency[]> {
+  private async extractDependencies(_file: CodeFile): Promise<Dependency[]> {
     // TODO: Implement dependency extraction
     // For now, return empty array
     return []

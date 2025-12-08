@@ -1,4 +1,4 @@
-import { pipeline, Pipeline } from '@xenova/transformers'
+import { pipeline } from '@xenova/transformers'
 import type { EmbeddingOptions } from './types'
 
 /**
@@ -6,10 +6,10 @@ import type { EmbeddingOptions } from './types'
  * Default: All-MiniLM-L6-v2 (384 dimensions, fast)
  */
 export class CodeEmbedder {
-  private model: Pipeline | null = null
+  private model: any = null // Pipeline type from @xenova/transformers
   private modelName: string = 'Xenova/all-MiniLM-L6-v2'
 
-  async initialize(options?: EmbeddingOptions): Promise<void> {
+  async initialize(_options?: EmbeddingOptions): Promise<void> {
     if (this.model) return
 
     try {
@@ -17,9 +17,8 @@ export class CodeEmbedder {
         'feature-extraction',
         this.modelName,
         {
-          quantized: true, // Use quantized model for faster loading
-          device: 'cpu' // Can be 'gpu' if available
-        }
+          quantized: true // Use quantized model for faster loading
+        } as any // Type assertion to bypass device option type issue
       )
     } catch (error) {
       throw new Error(`Failed to load embedding model: ${error}`)

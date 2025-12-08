@@ -1,4 +1,4 @@
-import type { AgentStep, CodeContext } from './types'
+import type { CodeContext } from './types'
 
 /**
  * LangChain-like tool system for the agent
@@ -96,7 +96,7 @@ export const createStandardTools = (): Tool[] => {
         { name: 'query', type: 'string', description: 'Search query', required: true },
         { name: 'limit', type: 'number', description: 'Number of results', required: false }
       ],
-      execute: async (args, context) => {
+      execute: async (args, _context) => {
         // TODO: Implement semantic search using vector database
         return {
           success: true,

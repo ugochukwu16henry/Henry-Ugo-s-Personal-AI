@@ -1,4 +1,4 @@
-import type { AIRequest, AIResponse, AIRequestOptions } from './types'
+import type { AIRequest, AIResponse } from './types'
 import type { LocalAIProvider } from '@henry-ai/local-ai'
 
 /**
@@ -99,7 +99,10 @@ export class AIRouter {
       throw new Error(`OpenAI API error: ${response.statusText}`)
     }
 
-    const data = await response.json()
+    const data = await response.json() as {
+      choices: Array<{ message: { content: string } }>
+      usage?: { total_tokens?: number }
+    }
     const latency = Date.now() - startTime
 
     return {
@@ -136,7 +139,9 @@ export class AIRouter {
       throw new Error(`Claude API error: ${response.statusText}`)
     }
 
-    const data = await response.json()
+    const data = await response.json() as {
+      content: Array<{ text: string }>
+    }
     const latency = Date.now() - startTime
 
     return {
