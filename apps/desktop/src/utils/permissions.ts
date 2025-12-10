@@ -35,7 +35,7 @@ export async function requestFileWritePermission(
 /**
  * Apply file edit through Tauri (respects permissions)
  */
-export async function applyFileEdit(filePath: string, content: string): Promise<void> {
+export async function applyFileEdit(_filePath: string, _content: string): Promise<void> {
   // Note: In Tauri v2, file operations should use the fs plugin
   // This is a placeholder - the actual implementation would use
   // @tauri-apps/plugin-fs

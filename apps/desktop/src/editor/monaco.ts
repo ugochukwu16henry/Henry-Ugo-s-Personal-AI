@@ -8,7 +8,6 @@ import { fastAutocomplete, AutocompleteManager, AutocompleteRequest } from '@hen
 import type { CodeIndexer } from '@henry-ai/core';
 
 let autocompleteManager: AutocompleteManager | null = null;
-let indexer: CodeIndexer | null = null;
 
 /**
  * Initialize autocomplete system
@@ -22,7 +21,6 @@ export function initializeAutocomplete(manager?: AutocompleteManager, codeIndexe
   });
 
   if (codeIndexer) {
-    indexer = codeIndexer;
     autocompleteManager.setIndexer(codeIndexer);
   }
 
@@ -159,7 +157,6 @@ export function getAutocompleteManager(): AutocompleteManager | null {
  * Update indexer for context-aware completions
  */
 export function updateIndexer(newIndexer: CodeIndexer) {
-  indexer = newIndexer;
   if (autocompleteManager) {
     autocompleteManager.setIndexer(newIndexer);
   }
