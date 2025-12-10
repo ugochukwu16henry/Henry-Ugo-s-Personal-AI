@@ -3,6 +3,9 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Sandbox, FileDiff } from './security/sandbox';
 import { TestRunner, TestResult } from './security/test-runner';
+import { AgentMemoryManager } from './memory/agent-memory';
+import { EncryptedStorage } from './storage/encrypted-storage';
+import { createStorageAdapter } from './storage/adapter';
 
 export interface EditOptions {
   showDiff?: boolean;
@@ -15,18 +18,42 @@ export class HenryAgent {
   private model: string = process.env.OLLAMA_MODEL || 'codellama'; // default local
   private sandbox: Sandbox;
   private testRunner: TestRunner;
+  private memory: AgentMemoryManager | null = null;
+  private memoryInitialized: boolean = false;
 
   constructor() {
     this.sandbox = new Sandbox();
     this.testRunner = new TestRunner(this.sandbox);
   }
 
+  /**
+   * Initialize memory system (call this before using agent)
+   */
+  async initializeMemory(encryptionPassphrase?: string): Promise<void> {
+    if (this.memoryInitialized) {
+      return;
+    }
+
+    const storage = new EncryptedStorage(createStorageAdapter());
+    await storage.initialize(encryptionPassphrase);
+    
+    this.memory = new AgentMemoryManager(storage);
+    await this.memory.initialize();
+    this.memoryInitialized = true;
+  }
+
   async plan(task: string): Promise<string[]> {
+    // Get context from memory if available
+    let memoryContext = '';
+    if (this.memory) {
+      memoryContext = this.memory.getContextForTask(task);
+    }
+
     const prompt = `You are Henry's AI coding assistant. Break this into steps:
 
 Task: ${task}
 
-Rules: Use MVC, validate input, secure with JWT, document with Swagger.
+${memoryContext ? `Context from past interactions:\n${memoryContext}\n\n` : ''}Rules: Use MVC, validate input, secure with JWT, document with Swagger.
 
 Output JSON array of strings.`;
 
@@ -179,5 +206,22 @@ RETURN ONLY FULL UPDATED FILE.`;
     // TODO: Execute each step automatically
     // For now, this is a placeholder
     console.log('\n✨ Task planning complete. Full execution coming soon!');
+
+    // Save to memory
+    if (this.memory) {
+      await this.memory.addConversation({
+        task: options.goal,
+        steps,
+        result: 'partial', // Will be updated when execution is complete
+        filesModified: [] // Will be populated during execution
+      });
+    }
+  }
+
+  /**
+   * Get memory manager (for advanced usage)
+   */
+  getMemory(): AgentMemoryManager | null {
+    return this.memory;
   }
 }
