@@ -1,9 +1,25 @@
 import { generateStream } from '@henry-ai/local-ai';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { Sandbox, FileDiff } from './security/sandbox';
+import { TestRunner, TestResult } from './security/test-runner';
+
+export interface EditOptions {
+  showDiff?: boolean;
+  autoTest?: boolean;
+  requireApproval?: boolean;
+  rollbackOnTestFailure?: boolean;
+}
 
 export class HenryAgent {
   private model: string = process.env.OLLAMA_MODEL || 'codellama'; // default local
+  private sandbox: Sandbox;
+  private testRunner: TestRunner;
+
+  constructor() {
+    this.sandbox = new Sandbox();
+    this.testRunner = new TestRunner(this.sandbox);
+  }
 
   async plan(task: string): Promise<string[]> {
     const prompt = `You are Henry's AI coding assistant. Break this into steps:
@@ -28,8 +44,24 @@ Output JSON array of strings.`;
     }
   }
 
-  async edit(filePath: string, instruction: string): Promise<string> {
-    const currentCode = await fs.readFile(filePath, 'utf-8');
+  async edit(filePath: string, instruction: string, options: EditOptions = {}): Promise<FileDiff> {
+    const {
+      showDiff = true,
+      autoTest = true,
+      requireApproval = true,
+      rollbackOnTestFailure = true
+    } = options;
+
+    // Read current file
+    let currentCode = '';
+    try {
+      currentCode = await fs.readFile(filePath, 'utf-8');
+    } catch (error: any) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+      // File doesn't exist, will be created
+    }
     
     const prompt = `FILE: ${filePath}
 
@@ -52,8 +84,88 @@ RETURN ONLY FULL UPDATED FILE.`;
     }
 
     // Extract code block
-    const match = code.match(/```(?:js|javascript)?\n([\s\S]*)/);
-    return match ? match[1].trim() : code;
+    const match = code.match(/```(?:js|javascript|typescript)?\n([\s\S]*?)(?:```|$)/);
+    const newCode = match ? match[1].trim() : code.trim();
+
+    // Stage the edit in sandbox
+    await this.sandbox.stageEdit({
+      filePath,
+      newContent: newCode,
+      reason: instruction
+    });
+
+    // Generate and show diff
+    const diff = await this.sandbox.previewEdit(filePath, newCode);
+
+    if (showDiff) {
+      console.log(this.sandbox.formatDiffForDisplay(diff));
+    }
+
+    // If requireApproval is false or not set, apply automatically
+    // In production, this would wait for user approval
+    if (!requireApproval || options.requireApproval === false) {
+      if (autoTest) {
+        const { testResult, applied } = await this.testRunner.applyEditWithTest(
+          filePath,
+          rollbackOnTestFailure
+        );
+
+        if (!applied) {
+          throw new Error(`Edit rejected: Tests failed after applying changes.\n${testResult.output}`);
+        }
+
+        if (!testResult.success) {
+          console.warn('⚠️  Tests passed but with warnings');
+        } else {
+          console.log('✅ Tests passed! Changes applied.');
+        }
+      } else {
+        await this.sandbox.applyEdit(filePath, true);
+      }
+    }
+
+    return diff;
+  }
+
+  /**
+   * Get the generated edit without applying it
+   */
+  async previewEdit(filePath: string, instruction: string): Promise<FileDiff> {
+    return this.edit(filePath, instruction, { 
+      showDiff: true, 
+      requireApproval: true, 
+      autoTest: false 
+    });
+  }
+
+  /**
+   * Apply a previously staged edit
+   */
+  async applyStagedEdit(filePath: string, autoTest: boolean = true): Promise<TestResult | null> {
+    if (autoTest) {
+      const { testResult, applied } = await this.testRunner.applyEditWithTest(filePath, true);
+      if (!applied) {
+        throw new Error(`Edit rejected: Tests failed.\n${testResult.output}`);
+      }
+      return testResult;
+    } else {
+      await this.sandbox.applyEdit(filePath, true);
+      return null;
+    }
+  }
+
+  /**
+   * Discard a staged edit
+   */
+  discardEdit(filePath: string): void {
+    this.sandbox.discardEdit(filePath);
+  }
+
+  /**
+   * Rollback a file to its previous state
+   */
+  async rollback(filePath: string): Promise<void> {
+    await this.sandbox.rollback(filePath);
   }
 
   async executeTask(options: { goal: string }): Promise<void> {
