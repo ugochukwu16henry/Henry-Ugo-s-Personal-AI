@@ -1,67 +1,65 @@
-// Script to download Tree-sitter WASM grammar files
-import { readFile, writeFile, mkdir } from 'fs/promises';
+// Script to setup Tree-sitter WASM grammar files
+// Uses npm packages that include prebuilt WASM files
+
+import { readFile, writeFile, mkdir, access } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import https from 'https';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const WASM_DIR = join(__dirname, '../wasm');
-const GRAMMARS = {
-  javascript: 'https://github.com/tree-sitter/tree-sitter-javascript/releases/download/v0.20.0/tree-sitter-javascript.wasm',
-  typescript: 'https://github.com/tree-sitter/tree-sitter-typescript/releases/download/v0.20.5/tree-sitter-typescript.wasm',
-  python: 'https://github.com/tree-sitter/tree-sitter-python/releases/download/v0.20.4/tree-sitter-python.wasm',
-  rust: 'https://github.com/tree-sitter/tree-sitter-rust/releases/download/v0.20.4/tree-sitter-rust.wasm',
-  go: 'https://github.com/tree-sitter/tree-sitter-go/releases/download/v0.19.1/tree-sitter-go.wasm',
-  java: 'https://github.com/tree-sitter/tree-sitter-java/releases/download/v0.20.2/tree-sitter-java.wasm',
-  cpp: 'https://github.com/tree-sitter/tree-sitter-cpp/releases/download/v0.20.0/tree-sitter-cpp.wasm'
+
+// Language packages that include WASM files
+const LANGUAGE_PACKAGES = {
+  javascript: 'tree-sitter-javascript',
+  typescript: 'tree-sitter-typescript',
+  python: 'tree-sitter-python',
+  rust: 'tree-sitter-rust',
+  go: 'tree-sitter-go',
+  java: 'tree-sitter-java',
+  cpp: 'tree-sitter-cpp'
 };
 
-function downloadFile(url, filepath) {
-  return new Promise((resolve, reject) => {
-    https.get(url, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        // Follow redirect
-        return downloadFile(response.headers.location, filepath).then(resolve).catch(reject);
-      }
-      if (response.statusCode !== 200) {
-        return reject(new Error(`Failed to download ${url}: ${response.statusCode}`));
-      }
-      
-      const fileStream = require('fs').createWriteStream(filepath);
-      response.pipe(fileStream);
-      fileStream.on('finish', () => {
-        fileStream.close();
-        resolve();
-      });
-      fileStream.on('error', reject);
-    }).on('error', reject);
-  });
-}
-
-async function downloadGrammars() {
-  console.log('📦 Downloading Tree-sitter WASM grammar files...\n');
+async function setupWASMFiles() {
+  console.log('📦 Setting up Tree-sitter WASM grammar files...\n');
   
   // Create wasm directory
   await mkdir(WASM_DIR, { recursive: true });
   
-  for (const [lang, url] of Object.entries(GRAMMARS)) {
-    const filename = `tree-sitter-${lang}.wasm`;
-    const filepath = join(WASM_DIR, filename);
-    
+  console.log('Option 1: Install language packages (recommended)');
+  console.log('Run: npm install tree-sitter-javascript tree-sitter-typescript tree-sitter-python');
+  console.log('\nOption 2: Use prebuilt WASM from CDN or build from source');
+  console.log('\nFor now, the parser will use regex fallback until WASM files are available.');
+  console.log('\nTo manually setup:');
+  console.log('1. Install language packages: npm install tree-sitter-javascript');
+  console.log('2. Copy WASM files from node_modules/*/tree-sitter-*.wasm to wasm/ directory');
+  console.log('3. Or download from: https://github.com/Menci/tree-sitter-wasm-prebuilt');
+  
+  // Try to find WASM files in node_modules if packages are installed
+  let foundCount = 0;
+  for (const [lang, pkg] of Object.entries(LANGUAGE_PACKAGES)) {
     try {
-      console.log(`⬇️  Downloading ${filename}...`);
-      await downloadFile(url, filepath);
-      console.log(`✅ Downloaded ${filename}\n`);
-    } catch (error) {
-      console.warn(`⚠️  Failed to download ${filename}: ${error.message}`);
-      console.log(`   You can manually download from: ${url}\n`);
+      const wasmPath = require.resolve(`${pkg}/tree-sitter-${lang}.wasm`);
+      const targetPath = join(WASM_DIR, `tree-sitter-${lang}.wasm`);
+      
+      // Copy if found
+      const wasmContent = await readFile(wasmPath);
+      await writeFile(targetPath, wasmContent);
+      console.log(`✅ Found and copied ${lang} WASM file`);
+      foundCount++;
+    } catch {
+      // Package not installed, skip
     }
   }
   
-  console.log('✨ Done! WASM files are in packages/tree-sitter-parser/wasm/');
+  if (foundCount > 0) {
+    console.log(`\n✨ Copied ${foundCount} WASM files to ${WASM_DIR}`);
+  } else {
+    console.log('\n💡 Tip: Install tree-sitter language packages to get WASM files automatically');
+  }
 }
 
-downloadGrammars().catch(console.error);
-
+setupWASMFiles().catch(console.error);

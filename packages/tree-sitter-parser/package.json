@@ -16,7 +16,7 @@
     "dev": "tsc --watch",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
-    "download-wasm": "node scripts/download-wasm.mjs"
+    "setup-wasm": "node scripts/download-wasm.mjs"
   },
   "dependencies": {
     "web-tree-sitter": "^0.20.8"

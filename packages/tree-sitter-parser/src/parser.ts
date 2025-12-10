@@ -4,10 +4,12 @@ import * as path from 'path'
 import * as fs from 'fs/promises'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
+import { createRequire } from 'module'
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const require = createRequire(import.meta.url)
 
 /**
  * Tree-sitter parser for multi-language AST parsing
@@ -258,13 +260,16 @@ export class TreeSitterParser {
     const possiblePaths = [
       // Local wasm directory (for Node.js)
       path.join(__dirname, '../wasm', wasmFileName),
+      // Try from node_modules if packages are installed
+      ...(language === 'javascript' ? [require.resolve?.('tree-sitter-javascript/tree-sitter-javascript.wasm')] : []),
+      ...(language === 'typescript' ? [require.resolve?.('tree-sitter-typescript/tree-sitter-typescript.wasm')] : []),
       // Public directory (for web)
       `/wasm/${wasmFileName}`,
       // Root wasm directory
       `./wasm/${wasmFileName}`,
       // Direct file name (if in same directory)
       wasmFileName
-    ]
+    ].filter(Boolean)
 
     for (const wasmPath of possiblePaths) {
       try {
