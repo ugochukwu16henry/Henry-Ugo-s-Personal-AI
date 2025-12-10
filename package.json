@@ -20,7 +20,8 @@
     "test:ui": "turbo run test:ui",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "test:agent": "node test-agent-standalone.mjs"
   },
   "keywords": [
     "ai",
