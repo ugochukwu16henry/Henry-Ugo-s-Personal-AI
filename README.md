@@ -50,16 +50,37 @@ henry-ugo-ai/
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run development servers
-npm run dev:desktop  # Desktop app
-npm run dev:web      # Web app
-npm run dev:cli      # CLI tool
+pnpm --filter @henry-ai/desktop dev  # Desktop app (Tauri)
+pnpm --filter @henry-ai/web dev      # Web app (PWA)
+pnpm --filter @henry-ai/cli dev "task" # CLI tool
 
 # Build all packages
-npm run build
+pnpm build
+
+# Setup Ollama (required for local AI)
+# Download from https://ollama.ai
+ollama pull codellama  # or phi3:mini for lower memory
 ```
+
+## Current Status
+
+**✅ Working Features:**
+- Agent system with task planning and code editing
+- Security layer (sandbox, auto-test, rollback)
+- Encrypted memory storage and sync
+- Desktop app (Tauri) and Web app (PWA)
+- CLI tool
+- Rules engine (.henryrc)
+
+**🚧 In Progress:**
+- Autocomplete engine (<80ms target)
+- Full multi-step task execution
+- Performance benchmarking
+
+**See `PROJECT_STATUS.md` for complete status report.**
 
 ## Tech Stack
 
