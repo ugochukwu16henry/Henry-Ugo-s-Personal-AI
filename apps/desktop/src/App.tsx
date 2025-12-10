@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Editor } from '@monaco-editor/react';
-import { HenryAgent } from '@henry-ai/core';
-// Note: These imports should work once commands are properly exported from core
-// For now, we'll handle commands differently
-// import { executeCommand, defaultCommandRegistry } from '@henry-ai/core';
+
+// Dynamic import for HenryAgent to handle Node.js dependency issues gracefully
+let HenryAgent: any = null;
+import('@henry-ai/core').then((core) => {
+  HenryAgent = core.HenryAgent;
+}).catch((error) => {
+  console.warn('Could not load HenryAgent:', error);
+});
 import { MenuBar } from './components/MenuBar';
 import { FileTree } from './components/FileTree';
 import { Terminal } from './components/Terminal';
@@ -41,6 +45,11 @@ console.log(message)
   // Agent execution handler - can be called from AgentPanel
   const handleAgentCommand = useCallback(async (command: string) => {
     if (!command.trim()) return;
+    
+    if (!HenryAgent) {
+      console.error('HenryAgent not available - Node.js dependencies may not be loaded');
+      return;
+    }
     
     try {
       const agent = new HenryAgent();

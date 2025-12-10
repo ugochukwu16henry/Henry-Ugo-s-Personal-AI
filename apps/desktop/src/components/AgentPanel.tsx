@@ -16,7 +16,7 @@ interface Message {
 interface AgentPanelProps {
   isOpen: boolean;
   onClose?: () => void;
-  onCommand?: (command: string) => void;
+  onCommand?: (command: string) => Promise<string | void> | void;
 }
 
 export function AgentPanel({ isOpen, onClose, onCommand }: AgentPanelProps) {
@@ -36,7 +36,7 @@ export function AgentPanel({ isOpen, onClose, onCommand }: AgentPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = {
@@ -47,19 +47,57 @@ export function AgentPanel({ isOpen, onClose, onCommand }: AgentPanelProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
-    onCommand?.(input);
+    const userInput = input;
     setInput('');
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: 'I received your message. This is a placeholder response.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMessage]);
-    }, 500);
+    // Show loading message
+    const loadingMessageId = (Date.now() + 1).toString();
+    const loadingMessage: Message = {
+      id: loadingMessageId,
+      role: 'assistant',
+      content: 'Thinking...',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, loadingMessage]);
+
+    try {
+      // Call the agent command handler
+      const response = await onCommand?.(userInput);
+      
+      // Remove loading message and add actual response
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.id !== loadingMessageId);
+        if (response && typeof response === 'string') {
+          filtered.push({
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: response,
+            timestamp: new Date()
+          });
+        } else if (!response) {
+          // No response from agent, show default message
+          filtered.push({
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: 'Command executed. Check the console or editor for results.',
+            timestamp: new Date()
+          });
+        }
+        return filtered;
+      });
+    } catch (error: any) {
+      // Remove loading message and show error
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.id !== loadingMessageId);
+        filtered.push({
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `Error: ${error?.message || 'Something went wrong'}`,
+          timestamp: new Date()
+        });
+        return filtered;
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
