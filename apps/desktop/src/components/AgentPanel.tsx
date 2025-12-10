@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { FiMessageSquare, FiSend, FiX, FiMinimize2, FiZap } from 'react-icons/fi';
+import { FiMessageSquare, FiSend, FiX, FiMinimize2 } from 'react-icons/fi';
 import { ModelSelector } from './ModelSelector';
 import { AutonomySlider } from './AutonomySlider';
 import { AutonomyLevel } from '../services/ai/agent';

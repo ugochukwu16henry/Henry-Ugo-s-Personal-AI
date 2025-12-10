@@ -75,9 +75,15 @@ importers:
       '@tauri-apps/plugin-opener':
         specifier: ^2
         version: 2.5.2
+      '@tauri-apps/plugin-os':
+        specifier: ^2.0.0
+        version: 2.3.2
       '@tauri-apps/plugin-shell':
         specifier: ^2.3.3
         version: 2.3.3
+      '@tauri-apps/plugin-store':
+        specifier: ^2.0.0
+        version: 2.4.1
       diff:
         specifier: ^8.0.2
         version: 8.0.2
@@ -2957,8 +2963,20 @@ packages:
       '@tauri-apps/api': 2.9.1
     dev: false
 
+  /@tauri-apps/plugin-os@2.3.2:
+    resolution: {integrity: sha512-n+nXWeuSeF9wcEsSPmRnBEGrRgOy6jjkSU+UVCOV8YUGKb2erhDOxis7IqRXiRVHhY8XMKks00BJ0OAdkpf6+A==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
   /@tauri-apps/plugin-shell@2.3.3:
     resolution: {integrity: sha512-Xod+pRcFxmOWFWEnqH5yZcA7qwAMuaaDkMR1Sply+F8VfBj++CGnj2xf5UoialmjZ2Cvd8qrvSCbU+7GgNVsKQ==}
+    dependencies:
+      '@tauri-apps/api': 2.9.1
+    dev: false
+
+  /@tauri-apps/plugin-store@2.4.1:
+    resolution: {integrity: sha512-ckGSEzZ5Ii4Hf2D5x25Oqnm2Zf9MfDWAzR+volY0z/OOBz6aucPKEY0F649JvQ0Vupku6UJo7ugpGRDOFOunkA==}
     dependencies:
       '@tauri-apps/api': 2.9.1
     dev: false

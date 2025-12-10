@@ -13,11 +13,16 @@ export class APIKeyStorage {
     try {
       // Try using Tauri store if available
       if (typeof window !== 'undefined' && '__TAURI__' in window) {
-        const { Store } = await import('@tauri-apps/plugin-store');
-        const store = new Store('.api-keys.dat');
-        await store.set(`${this.storageKey}.${provider}`, apiKey);
-        await store.save();
-        return;
+        try {
+          const { Store } = await import('@tauri-apps/plugin-store');
+          const store = await Store.load('.api-keys.dat');
+          await store.set(`${this.storageKey}.${provider}`, apiKey);
+          await store.save();
+          return;
+        } catch (storeError) {
+          // Store plugin not available, fall through to localStorage
+          console.debug('Tauri store not available, using localStorage');
+        }
       }
 
       // Fallback to localStorage
@@ -39,14 +44,15 @@ export class APIKeyStorage {
   async getApiKey(provider: string): Promise<string | null> {
     try {
       // Try using Tauri store if available
-      if (false && typeof window !== 'undefined' && '__TAURI__' in window) {
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
         try {
           const { Store } = await import('@tauri-apps/plugin-store');
-          const store = new Store('.api-keys.dat');
-          const value = await store.get<string>(`${this.storageKey}.${provider}`);
-          return value || null;
+          const store = await Store.load('.api-keys.dat');
+          const value = await store.get(`${this.storageKey}.${provider}`);
+          return (value as string) || null;
         } catch (error) {
           // Fall through to localStorage
+          console.debug('Tauri store not available, using localStorage');
         }
       }
 
@@ -67,10 +73,10 @@ export class APIKeyStorage {
   async getAllApiKeys(): Promise<Record<string, string>> {
     try {
       // Try using Tauri store if available
-      if (false && typeof window !== 'undefined' && '__TAURI__' in window) {
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
         try {
           const { Store } = await import('@tauri-apps/plugin-store');
-          const store = new Store('.api-keys.dat');
+          const store = await Store.load('.api-keys.dat');
           const all = await store.entries();
           const keys: Record<string, string> = {};
           
@@ -84,6 +90,7 @@ export class APIKeyStorage {
           return keys;
         } catch (error) {
           // Fall through to localStorage
+          console.debug('Tauri store not available, using localStorage');
         }
       }
 
@@ -100,15 +107,16 @@ export class APIKeyStorage {
    */
   async deleteApiKey(provider: string): Promise<void> {
     try {
-      if (false && typeof window !== 'undefined' && '__TAURI__' in window) {
+      if (typeof window !== 'undefined' && '__TAURI__' in window) {
         try {
           const { Store } = await import('@tauri-apps/plugin-store');
-          const store = new Store('.api-keys.dat');
+          const store = await Store.load('.api-keys.dat');
           await store.delete(`${this.storageKey}.${provider}`);
           await store.save();
           return;
         } catch (error) {
           // Fall through to localStorage
+          console.debug('Tauri store not available, using localStorage');
         }
       }
 

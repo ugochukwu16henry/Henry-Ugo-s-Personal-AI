@@ -26,7 +26,7 @@ export async function readDirectory(dirPath: string): Promise<FileSystemEntry[]>
   }
 
   try {
-    const entries = await readDir(dirPath, { recursive: false });
+    const entries = await readDir(dirPath);
     const result: FileSystemEntry[] = [];
 
     for (const entry of entries) {

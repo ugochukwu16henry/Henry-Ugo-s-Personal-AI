@@ -97,10 +97,10 @@ export class UnifiedAIClient {
 
     if (model.provider === AIModelProvider.ANTHROPIC) {
       // Convert messages format for Anthropic
-      const messages = request.messages
+      const messages: Array<{ role: 'user' | 'assistant'; content: string }> = request.messages
         .filter(m => m.role !== 'system')
         .map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
+          role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
           content: m.content
         }));
 
@@ -150,10 +150,10 @@ export class UnifiedAIClient {
     }
 
     if (model.provider === AIModelProvider.ANTHROPIC) {
-      const messages = request.messages
+      const messages: Array<{ role: 'user' | 'assistant'; content: string }> = request.messages
         .filter(m => m.role !== 'system')
         .map(m => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
+          role: (m.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
           content: m.content
         }));
 

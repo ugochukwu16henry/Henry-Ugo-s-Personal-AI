@@ -9,7 +9,7 @@ import { Command } from '@tauri-apps/plugin-shell';
 async function getPlatform(): Promise<string> {
   try {
     const { platform } = await import('@tauri-apps/plugin-os');
-    const platformName = await platform.platform();
+    const platformName = await platform();
     return platformName === 'windows' ? 'win32' : 'unix';
   } catch {
     return 'win32'; // Default fallback
@@ -67,7 +67,7 @@ export class TerminalExecutor {
       // The exact structure may vary, so we handle both possibilities
       const stdout = (typeof result.stdout === 'string' ? result.stdout : '') || '';
       const stderr = (typeof result.stderr === 'string' ? result.stderr : '') || '';
-      const exitCode = (typeof result.code === 'number' ? result.code : result.exitCode) || 0;
+      const exitCode = (typeof result.code === 'number' ? result.code : 0);
 
       return {
         stdout,

@@ -44,12 +44,12 @@ console.log(message)
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [selectedCode, setSelectedCode] = useState<string>('');
-  const [editorInstance, setEditorInstance] = useState<any>(null);
+  const [, setEditorInstance] = useState<any>(null);
   const [showCodeReview, setShowCodeReview] = useState(false);
   const [apiClient] = useState<UnifiedAIClient>(new UnifiedAIClient());
   const [modelSettings] = useState<ModelSettings>(DEFAULT_MODEL_SETTINGS);
   const [terminalExecutor] = useState(() => new TerminalExecutor());
-  const [rulesService] = useState(() => new RulesMemoryService());
+  // const [rulesService] = useState(() => new RulesMemoryService()); // Reserved for future use
   const [codebaseIntelligence] = useState(() => 
     new CodebaseIntelligenceService(AVAILABLE_MODELS[DEFAULT_MODEL_SETTINGS.selectedModel], apiClient)
   );
