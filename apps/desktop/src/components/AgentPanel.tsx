@@ -7,8 +7,10 @@ import { FiMessageSquare, FiSend, FiX, FiMinimize2, FiZap } from 'react-icons/fi
 import { ModelSelector } from './ModelSelector';
 import { AutonomySlider, AutonomyLevel } from './AutonomySlider';
 import { SlashCommandService, DEFAULT_SLASH_COMMANDS } from '../services/ai/slashCommands';
-import { AgentService } from '../services/ai/agent';
+import { AgentService, type AgentPlan } from '../services/ai/agent';
 import { AVAILABLE_MODELS, DEFAULT_MODEL_SETTINGS, type ModelSettings } from '../services/ai/models';
+import { UnifiedAIClient } from '../services/ai/api';
+import { PlanApproval } from './PlanApproval';
 import './AgentPanel.css';
 
 interface Message {
@@ -18,6 +20,7 @@ interface Message {
   timestamp: Date;
   isPlan?: boolean;
   planSteps?: Array<{ id: string; description: string; status?: string }>;
+  plan?: AgentPlan;
 }
 
 interface AgentPanelProps {
@@ -125,10 +128,11 @@ export function AgentPanel({
         const planMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `**Plan Mode**\n\nI've created a ${plan.steps.length}-step plan:\n\n${plan.steps.map((s, i) => `${i + 1}. ${s.description}`).join('\n')}\n\nWould you like me to execute this plan?`,
+          content: `**Plan Mode**\n\nI've created a ${plan.steps.length}-step plan. Review and approve below.`,
           timestamp: new Date(),
           isPlan: true,
-          planSteps: plan.steps
+          planSteps: plan.steps,
+          plan
         };
         setMessages(prev => [...prev, planMessage]);
       } catch (error: any) {
@@ -253,26 +257,70 @@ export function AgentPanel({
               className={`agent-panel-message agent-panel-message-${message.role}`}
             >
               <div className="agent-panel-message-content">
-                {message.isPlan && message.planSteps ? (
+                {message.isPlan && message.plan ? (
                   <div>
                     <div style={{ marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
                       {message.content}
                     </div>
-                    <div className="agent-panel-plan-steps">
-                      {message.planSteps.map((step) => (
-                        <div key={step.id} className="agent-panel-plan-step">
-                          <span className="agent-panel-plan-step-number">
-                            {message.planSteps!.indexOf(step) + 1}
-                          </span>
-                          <span>{step.description}</span>
-                          {step.status && (
-                            <span className={`agent-panel-plan-step-status ${step.status}`}>
-                              {step.status === 'completed' ? '✓' : step.status === 'failed' ? '✗' : '⋯'}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    <PlanApproval
+                      plan={message.plan}
+                      onApprove={async (approvedPlan) => {
+                        // Execute the approved plan
+                        try {
+                          // Find the original user message for this plan
+                          const userMessage = messages.find(m => 
+                            m.role === 'user' && 
+                            messages.indexOf(m) < messages.findIndex(msg => msg.id === message.id)
+                          );
+                          
+                          const task = {
+                            id: Date.now().toString(),
+                            description: userMessage?.content || 'Execute plan',
+                            plan: approvedPlan,
+                            status: 'executing' as const,
+                            createdAt: Date.now()
+                          };
+                          
+                          const result = await agentService.executeTask(task);
+                          
+                          const resultMessage: Message = {
+                            id: (Date.now() + 1).toString(),
+                            role: 'assistant',
+                            content: result.result || 'Plan executed successfully',
+                            timestamp: new Date()
+                          };
+                          setMessages(prev => [...prev, resultMessage]);
+                        } catch (error: any) {
+                          const errorMessage: Message = {
+                            id: (Date.now() + 1).toString(),
+                            role: 'assistant',
+                            content: `Error executing plan: ${error.message}`,
+                            timestamp: new Date()
+                          };
+                          setMessages(prev => [...prev, errorMessage]);
+                        }
+                      }}
+                      onReject={() => {
+                        const rejectMessage: Message = {
+                          id: (Date.now() + 1).toString(),
+                          role: 'assistant',
+                          content: 'Plan execution cancelled.',
+                          timestamp: new Date()
+                        };
+                        setMessages(prev => [...prev, rejectMessage]);
+                      }}
+                      onEditStep={(stepId, newDescription) => {
+                        if (message.plan) {
+                          const step = message.plan.steps.find(s => s.id === stepId);
+                          if (step) {
+                            step.description = newDescription;
+                            setMessages(prev => prev.map(m => 
+                              m.id === message.id ? { ...m, plan: { ...message.plan! } } : m
+                            ));
+                          }
+                        }
+                      }}
+                    />
                   </div>
                 ) : (
                   <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>

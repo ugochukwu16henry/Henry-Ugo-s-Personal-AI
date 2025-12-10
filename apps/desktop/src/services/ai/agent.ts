@@ -6,6 +6,10 @@
 import { AIModel, selectBestModel } from './models';
 import { UnifiedAIClient, ChatRequest } from './api';
 
+export interface TerminalExecutor {
+  execute(command: string, args?: string[]): Promise<{ stdout: string; stderr: string; success: boolean }>;
+}
+
 export enum AutonomyLevel {
   TAB = 'tab',              // Light assist - only autocomplete
   CMD_K = 'cmd-k',          // Targeted edit - single file changes
@@ -61,11 +65,18 @@ export class AgentService {
   private codebaseContext?: CodebaseContext;
   private tasks: Map<string, AgentTask> = new Map();
   private apiClient?: UnifiedAIClient;
+  private terminalExecutor?: TerminalExecutor;
 
-  constructor(model?: AIModel, autonomyLevel: AutonomyLevel = AutonomyLevel.CMD_K, apiClient?: UnifiedAIClient) {
+  constructor(
+    model?: AIModel,
+    autonomyLevel: AutonomyLevel = AutonomyLevel.CMD_K,
+    apiClient?: UnifiedAIClient,
+    terminalExecutor?: TerminalExecutor
+  ) {
     this.model = model || selectBestModel('codegen');
     this.autonomyLevel = autonomyLevel;
     this.apiClient = apiClient;
+    this.terminalExecutor = terminalExecutor;
   }
 
   /**
@@ -230,9 +241,35 @@ export class AgentService {
       case 'search':
         return `Search completed: ${step.target}`;
       case 'execute':
-        return `Executed: ${step.command}`;
+        if (step.command && this.terminalExecutor) {
+          try {
+            const result = await this.terminalExecutor.execute(step.command);
+            if (result.success) {
+              return `Executed: ${step.command}\n${result.stdout}`;
+            } else {
+              return `Error executing ${step.command}:\n${result.stderr}`;
+            }
+          } catch (error: any) {
+            return `Failed to execute ${step.command}: ${error.message}`;
+          }
+        }
+        return step.command ? `Would execute: ${step.command}` : 'No command specified';
       case 'test':
-        return 'Tests passed';
+        if (this.terminalExecutor) {
+          try {
+            // Try common test commands
+            const testCmd = step.command || 'npm test';
+            const result = await this.terminalExecutor.execute(testCmd);
+            if (result.success) {
+              return `Tests passed\n${result.stdout}`;
+            } else {
+              return `Tests failed\n${result.stderr}`;
+            }
+          } catch (error: any) {
+            return `Test execution error: ${error.message}`;
+          }
+        }
+        return 'Tests would run';
       default:
         return 'Step completed';
     }
@@ -301,6 +338,13 @@ export class AgentService {
    */
   setApiClient(apiClient: UnifiedAIClient): void {
     this.apiClient = apiClient;
+  }
+
+  /**
+   * Set terminal executor
+   */
+  setTerminalExecutor(executor: TerminalExecutor): void {
+    this.terminalExecutor = executor;
   }
 }
 

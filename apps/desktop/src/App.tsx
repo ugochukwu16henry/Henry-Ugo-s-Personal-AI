@@ -14,6 +14,7 @@ import { StatusBar } from './components/StatusBar';
 import { AgentPanel } from './components/AgentPanel';
 import { TabBar, type Tab } from './components/TabBar';
 import { DiffViewer } from './components/DiffViewer';
+import { CodeReviewPanel } from './components/CodeReviewPanel';
 import { useDiffViewer } from './hooks/useDiffViewer';
 import { FiCode } from 'react-icons/fi';
 import { useEffect } from 'react';
@@ -44,6 +45,7 @@ console.log(message)
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [selectedCode, setSelectedCode] = useState<string>('');
   const [editorInstance, setEditorInstance] = useState<any>(null);
+  const [showCodeReview, setShowCodeReview] = useState(false);
 
   const diffViewer = useDiffViewer();
 
@@ -649,8 +651,18 @@ Enjoy your project!`
         setShowAgentPanel(!showAgentPanel);
         setShowCommandPalette(false);
       }
+    },
+    {
+      id: 'review:code',
+      label: 'Review Code',
+      category: 'Code',
+      shortcut: 'Ctrl+Shift+R',
+      action: () => {
+        setShowCodeReview(true);
+        setShowCommandPalette(false);
+      }
     }
-  ], [handleAgentCommand, showTerminal, showAgentPanel, handleNewFile, handleOpenFile, handleSaveFile, setShowTerminal, setShowAgentPanel, setShowCommandPalette]);
+  ], [handleAgentCommand, showTerminal, showAgentPanel, handleNewFile, handleOpenFile, handleSaveFile, setShowTerminal, setShowAgentPanel, setShowCommandPalette, setShowCodeReview]);
 
 
   return (
@@ -783,23 +795,34 @@ Enjoy your project!`
         commands={commandPaletteCommands}
       />
 
-      {/* Diff Viewer Modal */}
-      {diffViewer.isOpen && diffViewer.diff && (
-        <DiffViewer
-          isOpen={diffViewer.isOpen}
-          oldCode={diffViewer.diff.oldContent}
-          newCode={diffViewer.diff.newContent}
-          oldPath={diffViewer.filePath || 'original'}
-          newPath={diffViewer.filePath || 'modified'}
-          language="typescript"
-          title={`Diff Preview: ${diffViewer.filePath || 'file'}`}
-          onClose={diffViewer.closeDiff}
-          onApply={diffViewer.handleApply}
-          onReject={diffViewer.handleReject}
-        />
-      )}
-    </div>
-  );
-}
+            {/* Diff Viewer Modal */}
+            {diffViewer.isOpen && diffViewer.diff && (
+              <DiffViewer
+                isOpen={diffViewer.isOpen}
+                oldCode={diffViewer.diff.oldContent}
+                newCode={diffViewer.diff.newContent}
+                oldPath={diffViewer.filePath || 'original'}
+                newPath={diffViewer.filePath || 'modified'}
+                language="typescript"
+                title={`Diff Preview: ${diffViewer.filePath || 'file'}`}
+                onClose={diffViewer.closeDiff}
+                onApply={diffViewer.handleApply}
+                onReject={diffViewer.handleReject}
+              />
+            )}
 
-export default App;
+            {/* Code Review Panel */}
+            <CodeReviewPanel
+              code={selectedCode || code}
+              language="typescript"
+              filePath={tabs.find(t => t.id === activeTabId)?.path}
+              isOpen={showCodeReview}
+              onClose={() => setShowCodeReview(false)}
+              apiClient={apiClient}
+              modelId={modelSettings.selectedModel}
+            />
+          </div>
+        );
+      }
+      
+      export default App;
