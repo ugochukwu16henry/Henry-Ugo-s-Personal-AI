@@ -42,7 +42,12 @@ export function CodeEditor({
       },
       suggestOnTriggerCharacters: true,
       acceptSuggestionOnCommitCharacter: true,
-      snippetSuggestions: 'top'
+      snippetSuggestions: 'top',
+      // Enable AI autocomplete
+      wordBasedSuggestions: 'matchingDocuments',
+      inlayHints: {
+        enabled: 'on'
+      }
     })
   }
 

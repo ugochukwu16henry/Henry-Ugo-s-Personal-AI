@@ -1,11 +1,25 @@
 /**
  * Monaco Editor Autocomplete Provider
  * Integrates fast autocomplete with Monaco Editor
+ * 
+ * Note: Monaco Editor must be available globally when using these functions
+ * For apps: npm install monaco-editor
+ * 
+ * Usage in your app:
+ * import * as monaco from 'monaco-editor';
+ * import { setupMonacoAutocomplete } from '@henry-ai/core';
+ * 
+ * window.monaco = monaco; // Make available globally, or pass as parameter
+ * setupMonacoAutocomplete(manager, indexer);
  */
 
-import * as monaco from 'monaco-editor';
 import { AutocompleteManager, AutocompleteRequest } from './autocomplete';
 import { CodeIndexer } from './indexer';
+
+// Monaco will be available at runtime, but not at compile time
+declare global {
+  const monaco: any;
+}
 
 export interface MonacoAutocompleteOptions {
   fastModel?: string;
@@ -16,11 +30,18 @@ export interface MonacoAutocompleteOptions {
 
 /**
  * Create Monaco Editor completion item provider
+ * Requires Monaco Editor to be available globally
  */
 export function createMonacoAutocompleteProvider(
   manager: AutocompleteManager,
-  options: MonacoAutocompleteOptions = {}
-): monaco.languages.CompletionItemProvider {
+  options: MonacoAutocompleteOptions = {},
+  monacoInstance?: any
+): any {
+  const monaco = monacoInstance || (typeof globalThis !== 'undefined' && (globalThis as any).monaco);
+  
+  if (!monaco) {
+    throw new Error('Monaco Editor is not available. Pass monaco instance or make it available globally.');
+  }
   const {
     triggerCharacters = ['.', '('],
     ...autocompleteOptions
@@ -30,11 +51,11 @@ export function createMonacoAutocompleteProvider(
     triggerCharacters,
     
     async provideCompletionItems(
-      model: monaco.editor.ITextModel,
-      position: monaco.Position,
-      context: monaco.languages.CompletionContext,
-      token: monaco.CancellationToken
-    ): Promise<monaco.languages.ProviderResult<monaco.languages.CompletionList>> {
+      model: any, // monaco.editor.ITextModel
+      position: any, // monaco.Position
+      context: any, // monaco.languages.CompletionContext
+      token: any // monaco.CancellationToken
+    ): Promise<any> { // monaco.languages.ProviderResult<monaco.languages.CompletionList>
       // Get text around cursor
       const word = model.getWordUntilPosition(position);
       const textUntilPosition = model.getValueInRange({
@@ -76,10 +97,10 @@ export function createMonacoAutocompleteProvider(
         }
 
         // Convert to Monaco completion items
-        const suggestions: monaco.languages.CompletionItem[] = result.completions.map(
+        const suggestions = result.completions.map(
           (completion, index) => ({
             label: completion.slice(0, 50), // First 50 chars as label
-            kind: monaco.languages.CompletionItemKind.Text,
+            kind: monaco.languages?.CompletionItemKind?.Text || 0,
             insertText: completion,
             detail: `AI Completion (${result.latency}ms)`,
             sortText: `0${index}`, // Prioritize AI completions
@@ -106,26 +127,42 @@ export function createMonacoAutocompleteProvider(
 
 /**
  * Register autocomplete provider with Monaco Editor
+ * Requires Monaco Editor to be available globally
  */
 export function registerAutocompleteProvider(
   language: string,
   manager: AutocompleteManager,
-  options?: MonacoAutocompleteOptions
-): monaco.IDisposable {
-  const provider = createMonacoAutocompleteProvider(manager, options);
-  return monaco.languages.registerCompletionItemProvider(language, provider);
+  options?: MonacoAutocompleteOptions,
+  monacoInstance?: any
+): any { // monaco.IDisposable
+  const monaco = monacoInstance || (typeof globalThis !== 'undefined' && (globalThis as any).monaco);
+  
+  if (!monaco) {
+    throw new Error('Monaco Editor is not available. Pass monaco instance or make it available globally.');
+  }
+  
+  const provider = createMonacoAutocompleteProvider(manager, options, monaco);
+  return monaco.languages?.registerCompletionItemProvider(language, provider);
 }
 
 /**
  * Setup autocomplete for all supported languages
+ * Requires Monaco Editor to be available globally
  */
 export function setupMonacoAutocomplete(
   manager: AutocompleteManager,
   indexer?: CodeIndexer,
-  options?: MonacoAutocompleteOptions
-): monaco.IDisposable[] {
+  options?: MonacoAutocompleteOptions,
+  monacoInstance?: any
+): any[] { // monaco.IDisposable[]
   if (indexer) {
     manager.setIndexer(indexer);
+  }
+
+  const monaco = monacoInstance || (typeof globalThis !== 'undefined' && (globalThis as any).monaco);
+  
+  if (!monaco) {
+    throw new Error('Monaco Editor is not available. Pass monaco instance or make it available globally.');
   }
 
   const languages = [
@@ -140,7 +177,7 @@ export function setupMonacoAutocomplete(
   ];
 
   return languages.map(lang => 
-    registerAutocompleteProvider(lang, manager, options)
+    registerAutocompleteProvider(lang, manager, options, monaco)
   );
 }
 
