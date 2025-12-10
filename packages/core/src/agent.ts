@@ -1,4 +1,4 @@
-import { generateStream } from '@henry-ai/local-ai';
+import { streamGenerate } from './ai-stream';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { Sandbox, FileDiff } from './security/sandbox';
@@ -60,7 +60,7 @@ Output JSON array of strings.`;
 
     let fullResponse = '';
 
-    for await (const token of generateStream({ model: this.model, prompt })) {
+    for await (const token of streamGenerate(prompt, { model: this.model })) {
       fullResponse += token;
     }
 
@@ -107,7 +107,7 @@ RETURN ONLY FULL UPDATED FILE.`;
 
     let code = '';
 
-    for await (const token of generateStream({ model: this.model, prompt })) {
+    for await (const token of streamGenerate(prompt, { model: this.model })) {
       code += token;
     }
 

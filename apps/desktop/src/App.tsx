@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Editor } from '@monaco-editor/react';
-import { HenryAgent } from '@henry-ai/core';
+import { HenryAgent, executeCommand, defaultCommandRegistry } from '@henry-ai/core';
 import { DiffViewer } from './components/DiffViewer';
 import { useDiffViewer } from './hooks/useDiffViewer';
 import './App.css';
@@ -26,32 +26,46 @@ console.log(message)
       const agent = new HenryAgent();
       await agent.initializeMemory();
       
-      // Plan the task
-      const steps = await agent.plan(task);
-      setOutput(steps.join('\n'));
-      
-      // For demonstration: show diff preview for editing current file
-      // Note: In a real implementation, you'd specify the actual file path
-      if (code && task.toLowerCase().includes('edit')) {
-        const filePath = './example.ts';
-        // Preview edit
-        const preview = await agent.previewEdit(filePath, task);
+      // Check if input is a command
+      if (defaultCommandRegistry.isCommand(task)) {
+        // Execute command
+        const result = await executeCommand(task, agent, { 
+          cwd: typeof process !== 'undefined' ? process.cwd() : undefined 
+        });
+        setOutput(result.output);
         
-        // Show diff viewer
-        diffViewer.showDiff(
-          preview,
-          filePath,
-          async () => {
-            // Apply the edit
-            await agent.applyStagedEdit(filePath, true);
-            // Update editor content with new code
-            setCode(preview.newContent);
-          },
-          () => {
-            // Reject - do nothing, just discard
-            agent.discardEdit(filePath);
-          }
-        );
+        if (!result.success) {
+          console.error('Command failed:', result.output);
+        }
+      } else {
+        // Regular task execution
+        // Plan the task
+        const steps = await agent.plan(task);
+        setOutput(steps.join('\n'));
+        
+        // For demonstration: show diff preview for editing current file
+        // Note: In a real implementation, you'd specify the actual file path
+        if (code && task.toLowerCase().includes('edit')) {
+          const filePath = './example.ts';
+          // Preview edit
+          const preview = await agent.previewEdit(filePath, task);
+          
+          // Show diff viewer
+          diffViewer.showDiff(
+            preview,
+            filePath,
+            async () => {
+              // Apply the edit
+              await agent.applyStagedEdit(filePath, true);
+              // Update editor content with new code
+              setCode(preview.newContent);
+            },
+            () => {
+              // Reject - do nothing, just discard
+              agent.discardEdit(filePath);
+            }
+          );
+        }
       }
     } catch (error: any) {
       console.error('Agent error:', error);
@@ -72,7 +86,7 @@ console.log(message)
           <input 
             value={task} 
             onChange={e => setTask(e.target.value)}
-            placeholder="Enter a task..."
+            placeholder="Enter a task or command (/doc, /test, /pr)..."
             style={{ 
               width: '100%', 
               padding: '0.5rem',

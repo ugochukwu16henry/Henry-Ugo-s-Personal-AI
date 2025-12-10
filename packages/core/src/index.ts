@@ -7,3 +7,6 @@ export * from './sync';
 export * from './autocomplete';
 export * from './autocomplete-provider';
 export * from './agent-executor';
+export * from './commands';
+export * from './ai-router';
+export * from './ai-stream';
