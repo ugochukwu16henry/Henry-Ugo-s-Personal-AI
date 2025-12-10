@@ -1,27 +1,81 @@
-import type { CodeIndex, CodeFile, Symbol, Dependency, IndexMetadata } from './types'
-import type { TreeSitterParser } from '@henry-ai/tree-sitter-parser'
-import type { VectorDatabase } from '@henry-ai/vectordb'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import type { CodeIndex, CodeFile, Symbol, Dependency, IndexMetadata } from './types'
+import { TreeSitterParser } from '@henry-ai/tree-sitter-parser'
+import { VectorDatabase } from '@henry-ai/vectordb'
 
 /**
- * High-performance codebase indexer
+ * High-performance codebase indexer with Tree-sitter + LanceDB
  * Target: <15s for 10k LOC
  */
 export class CodeIndexer {
   private index: CodeIndex | null = null
-  private treeSitter: TreeSitterParser | null = null
-  private vectorDb: VectorDatabase | null = null
+  private treeSitter: TreeSitterParser
+  private vectorDb: VectorDatabase
 
-  constructor(options?: {
-    treeSitter?: TreeSitterParser
-    vectorDb?: VectorDatabase
-  }) {
-    this.treeSitter = options?.treeSitter || null
-    this.vectorDb = options?.vectorDb || null
+  constructor() {
+    this.treeSitter = new TreeSitterParser()
+    this.vectorDb = new VectorDatabase()
+  }
+
+  async initialize(): Promise<void> {
+    // Initialize Tree-sitter parser
+    await this.treeSitter.initialize()
+    
+    // Initialize vector database
+    await this.vectorDb.initialize()
+  }
+
+  async indexFile(filePath: string): Promise<void> {
+    const code = await fs.readFile(filePath, 'utf-8')
+    const language = this.detectLanguage(filePath)
+    
+    // Parse with Tree-sitter
+    const parseResult = await this.treeSitter.parse(code, language as any, filePath)
+    
+    // Extract symbols
+    const symbols = parseResult.symbols.map(s => ({
+      name: s.name,
+      type: s.type as 'function' | 'class' | 'interface' | 'variable' | 'type',
+      file: s.file,
+      line: s.line,
+      column: s.column,
+      signature: s.signature
+    }))
+
+    // Store in LanceDB for semantic search
+    if (symbols.length > 0) {
+      const embeddings = symbols
+        .filter(s => s.type === 'function' || s.type === 'class')
+        .map(s => {
+          const lines = code.split('\n')
+          const startLine = Math.max(0, s.line - 1)
+          const endLine = Math.min(lines.length, s.line + 20) // Include more context
+          
+          return {
+            id: `${filePath}:${s.line}`,
+            filePath,
+            code: lines.slice(startLine, endLine).join('\n'),
+            embedding: [],
+            metadata: {
+              language,
+              symbol: s.name,
+              line: s.line,
+              column: s.column,
+              type: s.type
+            }
+          }
+        })
+
+      if (embeddings.length > 0) {
+        await this.vectorDb.addEmbeddings(embeddings as any)
+      }
+    }
   }
 
   async indexDirectory(dirPath: string, options?: { enableVectorSearch?: boolean }): Promise<CodeIndex> {
+    await this.initialize()
+    
     const startTime = Date.now()
     const files: CodeFile[] = []
     const symbols: Symbol[] = []
@@ -32,18 +86,35 @@ export class CodeIndexer {
     // Parallel processing for performance
     await Promise.all(
       files.map(async (file) => {
-        // Use Tree-sitter for accurate symbol extraction
-        const fileSymbols = this.treeSitter
-          ? await this.extractSymbolsWithTreeSitter(file)
-          : await this.extractSymbols(file)
-        
-        const fileDeps = await this.extractDependencies(file)
-        symbols.push(...fileSymbols)
-        dependencies.push(...fileDeps)
+        try {
+          // Use Tree-sitter for accurate symbol extraction
+          const parseResult = await this.treeSitter.parse(
+            file.content,
+            file.language as any,
+            file.path
+          )
 
-        // Optionally index embeddings for semantic search
-        if (options?.enableVectorSearch && this.vectorDb) {
-          await this.indexVectorEmbeddings(file, fileSymbols)
+          const fileSymbols = parseResult.symbols
+            .filter(s => s.type === 'function' || s.type === 'class' || s.type === 'interface' || s.type === 'variable' || s.type === 'type')
+            .map(s => ({
+              name: s.name,
+              type: s.type as 'function' | 'class' | 'interface' | 'variable' | 'type',
+              file: s.file,
+              line: s.line,
+              column: s.column,
+              signature: s.signature
+            }))
+
+          const fileDeps = await this.extractDependencies(file)
+          symbols.push(...fileSymbols)
+          dependencies.push(...fileDeps)
+
+          // Index embeddings for semantic search
+          if (options?.enableVectorSearch !== false) {
+            await this.indexVectorEmbeddings(file, fileSymbols)
+          }
+        } catch (error) {
+          console.warn(`Failed to index ${file.path}:`, error)
         }
       })
     )
@@ -124,44 +195,14 @@ export class CodeIndexer {
     return langMap[ext] || 'unknown'
   }
 
-  private async extractSymbolsWithTreeSitter(file: CodeFile): Promise<Symbol[]> {
-    if (!this.treeSitter) {
-      return this.extractSymbols(file)
-    }
-
-    try {
-      const result = await this.treeSitter.parse(
-        file.content,
-        file.language as any,
-        file.path
-      )
-
-      return result.symbols
-        .filter(s => s.type === 'function' || s.type === 'class' || s.type === 'interface' || s.type === 'variable' || s.type === 'type')
-        .map(s => ({
-          name: s.name,
-          type: s.type as 'function' | 'class' | 'interface' | 'variable' | 'type',
-          file: s.file,
-          line: s.line,
-          column: s.column,
-          signature: s.signature
-        }))
-    } catch (error) {
-      console.warn(`Failed to parse ${file.path} with Tree-sitter:`, error)
-      return this.extractSymbols(file)
-    }
-  }
-
   private async indexVectorEmbeddings(file: CodeFile, symbols: Symbol[]): Promise<void> {
-    if (!this.vectorDb) return
-
     // Index function/class definitions for semantic search
     const codeSnippets = symbols
       .filter(s => s.type === 'function' || s.type === 'class')
       .map(s => {
         const lines = file.content.split('\n')
         const startLine = Math.max(0, s.line - 1)
-        const endLine = Math.min(lines.length, s.line + 10) // Next 10 lines
+        const endLine = Math.min(lines.length, s.line + 20) // More context
         return {
           id: `${file.path}:${s.line}`,
           filePath: file.path,
@@ -182,14 +223,8 @@ export class CodeIndexer {
     }
   }
 
-  private async extractSymbols(_file: CodeFile): Promise<Symbol[]> {
-    // Fallback regex-based extraction
-    return []
-  }
-
   private async extractDependencies(_file: CodeFile): Promise<Dependency[]> {
-    // TODO: Implement dependency extraction
-    // For now, return empty array
+    // TODO: Implement dependency extraction using Tree-sitter
     return []
   }
 
@@ -205,9 +240,12 @@ export class CodeIndexer {
     return this.index
   }
 
-  async getFile(path: string): Promise<CodeFile | null> {
+  async getFile(filePath: string): Promise<CodeFile | null> {
     if (!this.index) return null
-    return this.index.files.find(f => f.path === path) || null
+    return this.index.files.find(f => f.path === filePath) || null
+  }
+
+  async searchCode(query: string, limit: number = 10): Promise<any[]> {
+    return await this.vectorDb.search(query, { limit })
   }
 }
-

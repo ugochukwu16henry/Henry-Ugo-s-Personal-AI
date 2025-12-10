@@ -15,7 +15,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "download-wasm": "node scripts/download-wasm.mjs"
   },
   "dependencies": {
     "web-tree-sitter": "^0.20.8"
@@ -26,4 +27,3 @@
     "vitest": "^1.1.0"
   }
 }
-
