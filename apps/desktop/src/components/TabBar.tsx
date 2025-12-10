@@ -2,7 +2,6 @@
  * TabBar Component - Cursor-style editor tabs
  */
 
-import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
 import './TabBar.css';
 

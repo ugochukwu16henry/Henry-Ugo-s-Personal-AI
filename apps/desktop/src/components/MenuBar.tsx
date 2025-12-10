@@ -8,9 +8,9 @@ import './MenuBar.css';
 interface MenuItem {
   label: string;
   items: Array<{
-    label: string;
+    label?: string;
     shortcut?: string;
-    action: () => void;
+    action?: () => void;
     disabled?: boolean;
     separator?: boolean;
   }>;
@@ -120,7 +120,7 @@ export function MenuBar() {
   };
 
   const handleMenuItemClick = (item: MenuItem['items'][0]) => {
-    if (!item.disabled && !item.separator) {
+    if (!item.disabled && !item.separator && item.action) {
       item.action();
       setActiveMenu(null);
     }

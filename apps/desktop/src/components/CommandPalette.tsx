@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { FiSearch, FiCommand } from 'react-icons/fi';
+import { FiSearch } from 'react-icons/fi';
 import './CommandPalette.css';
 
 interface Command {

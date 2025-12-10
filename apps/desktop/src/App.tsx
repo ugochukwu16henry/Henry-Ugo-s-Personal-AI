@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Editor } from '@monaco-editor/react';
-import { HenryAgent, executeCommand, defaultCommandRegistry } from '@henry-ai/core';
+import { HenryAgent } from '@henry-ai/core';
+// Note: These imports should work once commands are properly exported from core
+// For now, we'll handle commands differently
+// import { executeCommand, defaultCommandRegistry } from '@henry-ai/core';
 import { MenuBar } from './components/MenuBar';
 import { FileTree } from './components/FileTree';
 import { Terminal } from './components/Terminal';
@@ -14,8 +17,6 @@ import { FiCode } from 'react-icons/fi';
 import './App.css';
 
 function App() {
-  const [task, setTask] = useState('');
-  const [output, setOutput] = useState('');
   const [code, setCode] = useState(`// Welcome to Henry Ugo's Personal AI
 // Start typing to experience ultra-fast autocomplete (<80ms)
 
@@ -36,6 +37,38 @@ console.log(message)
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   const diffViewer = useDiffViewer();
+
+  // Agent execution handler - can be called from AgentPanel
+  const handleAgentCommand = useCallback(async (command: string) => {
+    if (!command.trim()) return;
+    
+    try {
+      const agent = new HenryAgent();
+      await agent.initializeMemory();
+      
+      const steps = await agent.plan(command);
+      console.log('Agent steps:', steps.join('\n'));
+      
+      if (code && command.toLowerCase().includes('edit')) {
+        const filePath = './example.ts';
+        const preview = await agent.previewEdit(filePath, command);
+        
+        diffViewer.showDiff(
+          preview,
+          filePath,
+          async () => {
+            await agent.applyStagedEdit(filePath, true);
+            setCode(preview.newContent);
+          },
+          () => {
+            agent.discardEdit(filePath);
+          }
+        );
+      }
+    } catch (error: any) {
+      console.error('Agent error:', error);
+    }
+  }, [code, diffViewer]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -60,44 +93,7 @@ console.log(message)
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showTerminal, showCommandPalette]);
 
-  const runAgent = async () => {
-    try {
-      const agent = new HenryAgent();
-      await agent.initializeMemory();
-      
-      if (defaultCommandRegistry.isCommand(task)) {
-        const result = await executeCommand(task, agent, { 
-          cwd: typeof process !== 'undefined' ? process.cwd() : undefined 
-        });
-        setOutput(result.output);
-      } else {
-        const steps = await agent.plan(task);
-        setOutput(steps.join('\n'));
-        
-        if (code && task.toLowerCase().includes('edit')) {
-          const filePath = './example.ts';
-          const preview = await agent.previewEdit(filePath, task);
-          
-          diffViewer.showDiff(
-            preview,
-            filePath,
-            async () => {
-              await agent.applyStagedEdit(filePath, true);
-              setCode(preview.newContent);
-            },
-            () => {
-              agent.discardEdit(filePath);
-            }
-          );
-        }
-      }
-    } catch (error: any) {
-      console.error('Agent error:', error);
-      setOutput(`Error: ${error.message}`);
-    }
-  };
-
-  const handleEditorMount = (editor: any, monaco: any) => {
+  const handleEditorMount = (editor: any) => {
     editor.onDidChangeCursorPosition((e: any) => {
       setCursorPosition({
         line: e.position.lineNumber,
@@ -105,6 +101,55 @@ console.log(message)
       });
     });
   };
+
+  const commandPaletteCommands = useMemo(() => [
+    {
+      id: 'cmd:doc',
+      label: '/doc - Generate Documentation',
+      category: 'Commands',
+      action: () => {
+        handleAgentCommand('/doc ');
+        setShowCommandPalette(false);
+      }
+    },
+    {
+      id: 'cmd:test',
+      label: '/test - Generate Tests',
+      category: 'Commands',
+      action: () => {
+        handleAgentCommand('/test ');
+        setShowCommandPalette(false);
+      }
+    },
+    {
+      id: 'cmd:pr',
+      label: '/pr - Generate PR Description',
+      category: 'Commands',
+      action: () => {
+        handleAgentCommand('/pr ');
+        setShowCommandPalette(false);
+      }
+    },
+    {
+      id: 'terminal:toggle',
+      label: 'Toggle Terminal',
+      category: 'View',
+      shortcut: 'Ctrl+`',
+      action: () => {
+        setShowTerminal(!showTerminal);
+        setShowCommandPalette(false);
+      }
+    },
+    {
+      id: 'panel:agent',
+      label: 'Toggle Agent Panel',
+      category: 'View',
+      action: () => {
+        setShowAgentPanel(!showAgentPanel);
+        setShowCommandPalette(false);
+      }
+    }
+  ], [handleAgentCommand, showTerminal, showAgentPanel, setShowTerminal, setShowAgentPanel, setShowCommandPalette]);
 
   return (
     <div className="cursor-app">
@@ -182,7 +227,7 @@ console.log(message)
           <AgentPanel
             isOpen={showAgentPanel}
             onClose={() => setShowAgentPanel(false)}
-            onCommand={setTask}
+            onCommand={handleAgentCommand}
           />
         )}
       </div>
@@ -198,36 +243,7 @@ console.log(message)
       <CommandPalette
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
-        commands={[
-          ...defaultCommandRegistry.getAll().map(cmd => ({
-            id: cmd.name,
-            label: `/${cmd.name}`,
-            category: 'Commands',
-            action: () => {
-              setTask(`/${cmd.name} `);
-              setShowCommandPalette(false);
-            }
-          })),
-          {
-            id: 'terminal:toggle',
-            label: 'Toggle Terminal',
-            category: 'View',
-            shortcut: 'Ctrl+`',
-            action: () => {
-              setShowTerminal(!showTerminal);
-              setShowCommandPalette(false);
-            }
-          },
-          {
-            id: 'panel:agent',
-            label: 'Toggle Agent Panel',
-            category: 'View',
-            action: () => {
-              setShowAgentPanel(!showAgentPanel);
-              setShowCommandPalette(false);
-            }
-          }
-        ]}
+        commands={commandPaletteCommands}
       />
 
       {/* Diff Viewer Modal */}

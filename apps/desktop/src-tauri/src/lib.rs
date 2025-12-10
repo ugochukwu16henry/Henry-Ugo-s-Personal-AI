@@ -10,7 +10,7 @@ fn greet(name: &str) -> String {
 /// which respects the capabilities configuration
 #[tauri::command]
 async fn request_file_write_permission(
-    file_path: String,
+    _file_path: String,
     _diff_preview: String,
 ) -> Result<bool, String> {
     // Permission is handled by Tauri's capabilities system
@@ -19,12 +19,22 @@ async fn request_file_write_permission(
     Ok(true)
 }
 
+/// Apply a file edit after permission has been granted
+#[tauri::command]
+async fn apply_file_edit(file_path: String, content: String) -> Result<(), String> {
+    use std::fs;
+    fs::write(&file_path, content)
+        .map_err(|e| format!("Failed to write file {}: {}", file_path, e))?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             request_file_write_permission,

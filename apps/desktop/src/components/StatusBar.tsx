@@ -2,7 +2,7 @@
  * StatusBar Component - Cursor-style status bar at bottom
  */
 
-import { FiCheck, FiAlertCircle, FiInfo } from 'react-icons/fi';
+import { FiCheck, FiAlertCircle } from 'react-icons/fi';
 import './StatusBar.css';
 
 interface StatusBarProps {

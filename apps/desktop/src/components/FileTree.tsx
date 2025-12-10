@@ -5,7 +5,6 @@
 import { useState } from 'react';
 import { 
   FiFolder, 
-  FiFolderOpen, 
   FiFile, 
   FiChevronRight, 
   FiChevronDown,
@@ -83,7 +82,7 @@ function FileTreeNode({
         {!isFolder && <span className="file-tree-spacer" />}
         <span className="file-tree-icon">
           {isFolder 
-            ? (expanded ? <FiFolderOpen size={16} /> : <FiFolder size={16} />)
+            ? <FiFolder size={16} />
             : getFileIcon(node.name)
           }
         </span>
@@ -105,7 +104,7 @@ function FileTreeNode({
   );
 }
 
-export function FileTree({ onFileSelect, rootPath }: FileTreeProps) {
+export function FileTree({ onFileSelect }: FileTreeProps) {
   // Mock file tree data - in real app, this would come from file system
   const [fileTree] = useState<FileNode[]>([
     {

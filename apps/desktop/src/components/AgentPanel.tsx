@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { FiMessageSquare, FiSend, FiX, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
+import { FiMessageSquare, FiSend, FiX, FiMinimize2 } from 'react-icons/fi';
 import './AgentPanel.css';
 
 interface Message {
