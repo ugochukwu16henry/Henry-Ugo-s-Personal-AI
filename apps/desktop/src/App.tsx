@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { HenryAgent } from '@henry-ai/core';
+import { DiffViewer } from './components/DiffViewer';
+import { useDiffViewer } from './hooks/useDiffViewer';
 import './App.css';
 
 function App() {
@@ -17,11 +19,44 @@ const message = greet('Henry')
 console.log(message)
 `);
 
+  const diffViewer = useDiffViewer();
+
   const runAgent = async () => {
-    const agent = new HenryAgent();
-    const steps = await agent.plan(task);
-    setOutput(steps.join('\n'));
-    // TODO: Apply edits to editor
+    try {
+      const agent = new HenryAgent();
+      await agent.initializeMemory();
+      
+      // Plan the task
+      const steps = await agent.plan(task);
+      setOutput(steps.join('\n'));
+      
+      // For demonstration: show diff preview for editing current file
+      // Note: In a real implementation, you'd specify the actual file path
+      if (code && task.toLowerCase().includes('edit')) {
+        const filePath = './example.ts';
+        // Preview edit
+        const preview = await agent.previewEdit(filePath, task);
+        
+        // Show diff viewer
+        diffViewer.showDiff(
+          preview,
+          filePath,
+          async () => {
+            // Apply the edit
+            await agent.applyStagedEdit(filePath, true);
+            // Update editor content with new code
+            setCode(preview.newContent);
+          },
+          () => {
+            // Reject - do nothing, just discard
+            agent.discardEdit(filePath);
+          }
+        );
+      }
+    } catch (error: any) {
+      console.error('Agent error:', error);
+      setOutput(`Error: ${error.message}`);
+    }
   };
 
   return (
@@ -88,6 +123,22 @@ console.log(message)
           </div>
         )}
       </div>
+
+      {/* Diff Viewer Modal */}
+      {diffViewer.isOpen && diffViewer.diff && (
+        <DiffViewer
+          isOpen={diffViewer.isOpen}
+          oldCode={diffViewer.diff.oldContent}
+          newCode={diffViewer.diff.newContent}
+          oldPath={diffViewer.filePath || 'original'}
+          newPath={diffViewer.filePath || 'modified'}
+          language="typescript"
+          title={`Diff Preview: ${diffViewer.filePath || 'file'}`}
+          onClose={diffViewer.closeDiff}
+          onApply={diffViewer.handleApply}
+          onReject={diffViewer.handleReject}
+        />
+      )}
     </div>
   );
 }
