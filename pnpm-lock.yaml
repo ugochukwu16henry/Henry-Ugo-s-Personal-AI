@@ -153,7 +153,11 @@ importers:
         specifier: ^1.1.0
         version: 1.6.1(@types/node@20.19.26)
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@henry-ai/local-ai':
+        specifier: workspace:*
+        version: link:../local-ai
 
   packages/local-ai:
     dependencies:
