@@ -11,5 +11,8 @@
     "@henry-ai/tree-sitter-parser": "workspace:*",
     "@henry-ai/vectordb": "workspace:*",
     "chokidar": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/chokidar": "^2.1.7"
   }
 }

@@ -3,7 +3,7 @@ import * as path from 'path'
 import type { CodeIndex, CodeFile, Symbol, Dependency, IndexMetadata } from './types'
 import { TreeSitterParser } from '@henry-ai/tree-sitter-parser'
 import { VectorDatabase } from '@henry-ai/vectordb'
-import chokidar from 'chokidar'
+import chokidar, { type FSWatcher } from 'chokidar'
 
 /**
  * High-performance codebase indexer with Tree-sitter + LanceDB
@@ -13,7 +13,7 @@ export class CodeIndexer {
   private index: CodeIndex | null = null
   private treeSitter: TreeSitterParser
   private vectorDb: VectorDatabase
-  private watcher: chokidar.FSWatcher | null = null
+  private watcher: FSWatcher | null = null
   private watchDebounceMap: Map<string, NodeJS.Timeout> = new Map()
   private debounceDelay = 500 // 500ms debounce
 
@@ -251,5 +251,174 @@ export class CodeIndexer {
 
   async searchCode(query: string, limit: number = 10): Promise<any[]> {
     return await this.vectorDb.search(query, { limit })
+  }
+
+  /**
+   * Start watching a directory for file changes
+   * Automatically re-indexes files when they change
+   */
+  startWatching(dir: string, options?: {
+    ignored?: RegExp | string[]
+    debounce?: number
+  }): void {
+    if (this.watcher) {
+      console.warn('Watcher already running. Stop it first before starting a new one.')
+      return
+    }
+
+    const ignored = options?.ignored || /node_modules|\.git|dist|build|\.next/
+    const debounceDelay = options?.debounce || this.debounceDelay
+
+    console.log(`🔍 Starting file watcher for: ${dir}`)
+
+    this.watcher = chokidar.watch(dir, {
+      ignored,
+      ignoreInitial: true, // Don't index on initial scan
+      persistent: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 200,
+        pollInterval: 100
+      }
+    })
+
+    // Handle file changes
+    this.watcher.on('change', async (filePath: string) => {
+      if (this.isCodeFile(filePath)) {
+        this.debouncedUpdate(filePath, debounceDelay)
+      }
+    })
+
+    // Handle file additions
+    this.watcher.on('add', async (filePath: string) => {
+      if (this.isCodeFile(filePath)) {
+        this.debouncedUpdate(filePath, debounceDelay)
+      }
+    })
+
+    // Handle file deletions
+    this.watcher.on('unlink', async (filePath: string) => {
+      if (this.isCodeFile(filePath)) {
+        await this.removeFileFromIndex(filePath)
+      }
+    })
+
+    // Handle errors
+    this.watcher.on('error', (error: unknown) => {
+      console.error('File watcher error:', error)
+    })
+
+    console.log('✅ File watcher started')
+  }
+
+  /**
+   * Stop watching for file changes
+   */
+  stopWatching(): void {
+    if (this.watcher) {
+      this.watcher.close()
+      this.watcher = null
+      
+      // Clear all debounce timers
+      this.watchDebounceMap.forEach(timer => clearTimeout(timer))
+      this.watchDebounceMap.clear()
+      
+      console.log('⏹️  File watcher stopped')
+    }
+  }
+
+  /**
+   * Debounced file update to avoid rapid re-indexing
+   */
+  private debouncedUpdate(filePath: string, delay: number): void {
+    // Clear existing timer for this file
+    const existingTimer = this.watchDebounceMap.get(filePath)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
+    }
+
+    // Set new timer
+    const timer = setTimeout(async () => {
+      this.watchDebounceMap.delete(filePath)
+      await this.updateFileIndex(filePath)
+    }, delay)
+
+    this.watchDebounceMap.set(filePath, timer)
+  }
+
+  /**
+   * Update index for a single file
+   */
+  async updateFileIndex(filePath: string): Promise<void> {
+    try {
+      console.log(`📝 Updating index for: ${filePath}`)
+
+      // Check if file exists
+      try {
+        await fs.access(filePath)
+      } catch {
+        // File doesn't exist, remove from index
+        await this.removeFileFromIndex(filePath)
+        return
+      }
+
+      // Re-index the file
+      await this.indexFile(filePath)
+
+      // Update metadata
+      if (this.index) {
+        this.index.metadata.indexedAt = Date.now()
+      }
+
+      console.log(`✅ Updated index for: ${filePath}`)
+    } catch (error: any) {
+      console.error(`❌ Failed to update index for ${filePath}:`, error.message)
+    }
+  }
+
+  /**
+   * Remove file from index
+   */
+  private async removeFileFromIndex(filePath: string): Promise<void> {
+    if (!this.index) {
+      return
+    }
+
+    try {
+      // Remove from files array
+      this.index.files = this.index.files.filter(f => f.path !== filePath)
+
+      // Remove from symbols array
+      this.index.symbols = this.index.symbols.filter(s => s.file !== filePath)
+
+      // Remove from dependencies array
+      this.index.dependencies = this.index.dependencies.filter(
+        d => d.from !== filePath && d.to !== filePath
+      )
+
+      // Update metadata
+      this.index.metadata.totalFiles = this.index.files.length
+      this.index.metadata.indexedAt = Date.now()
+
+      console.log(`🗑️  Removed from index: ${filePath}`)
+    } catch (error: any) {
+      console.error(`❌ Failed to remove ${filePath} from index:`, error.message)
+    }
+  }
+
+  /**
+   * Check if file is being watched
+   */
+  isWatching(): boolean {
+    return this.watcher !== null
+  }
+
+  /**
+   * Get watched directories
+   */
+  getWatchedPaths(): string[] {
+    if (!this.watcher) {
+      return []
+    }
+    return this.watcher.getWatched() ? Object.keys(this.watcher.getWatched()) : []
   }
 }
