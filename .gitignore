@@ -3,54 +3,54 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build outputs
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Production builds
 dist/
 build/
 *.tsbuildinfo
-target/
-*.exe
-*.dmg
-*.deb
-*.rpm
-*.AppImage
 
-# Tauri
-apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/Cargo.lock
-
-# Environment
+# Environment variables
 .env
 .env.local
 .env.*.local
-*.log
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Rust (Tauri)
+target/
+Cargo.lock
+**/target/
+
+# Database
+.henry-db/
+*.db
+*.sqlite
+
+# WASM files (large binary files)
+# Uncomment if you don't want to commit WASM files:
+# packages/tree-sitter-parser/wasm/*.wasm
 
 # OS
-.DS_Store
 Thumbs.db
-*.tmp
-
-# AI & Local Models
-*.gguf
-*.bin
-models/
-.cache/
-
-# User data (privacy)
-.henry/
-.history/
-
-# Testing
-coverage/
-.nyc_output/
-
-# Temporary
-tmp/
-temp/
-

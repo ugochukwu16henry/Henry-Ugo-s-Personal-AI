@@ -3,7 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 export class HenryAgent {
-  private model: string = 'codellama'; // default local
+  private model: string = process.env.OLLAMA_MODEL || 'codellama'; // default local
 
   async plan(task: string): Promise<string[]> {
     const prompt = `You are Henry's AI coding assistant. Break this into steps:
@@ -54,5 +54,18 @@ RETURN ONLY FULL UPDATED FILE.`;
     // Extract code block
     const match = code.match(/```(?:js|javascript)?\n([\s\S]*)/);
     return match ? match[1].trim() : code;
+  }
+
+  async executeTask(options: { goal: string }): Promise<void> {
+    const steps = await this.plan(options.goal);
+    
+    console.log('📋 Execution Plan:');
+    steps.forEach((step, i) => {
+      console.log(`${i + 1}. ${step}`);
+    });
+    
+    // TODO: Execute each step automatically
+    // For now, this is a placeholder
+    console.log('\n✨ Task planning complete. Full execution coming soon!');
   }
 }

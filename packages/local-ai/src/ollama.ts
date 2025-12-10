@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const OLLAMA_URL = 'http://localhost:11434/api/generate';
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
 
 export interface OllamaRequest {
   model: string;
