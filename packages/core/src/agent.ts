@@ -6,6 +6,7 @@ import { TestRunner, TestResult } from './security/test-runner';
 import { AgentMemoryManager } from './memory/agent-memory';
 import { EncryptedStorage } from './storage/encrypted-storage';
 import { createStorageAdapter } from './storage/adapter';
+import type { ExecutionResult } from './agent-executor';
 
 export interface EditOptions {
   showDiff?: boolean;
@@ -195,26 +196,39 @@ RETURN ONLY FULL UPDATED FILE.`;
     await this.sandbox.rollback(filePath);
   }
 
-  async executeTask(options: { goal: string }): Promise<void> {
-    const steps = await this.plan(options.goal);
+  async executeTask(options: { goal: string; cwd?: string; autoExecute?: boolean }): Promise<ExecutionResult> {
+    const { TaskExecutor } = await import('./agent-executor');
     
-    console.log('📋 Execution Plan:');
-    steps.forEach((step, i) => {
-      console.log(`${i + 1}. ${step}`);
-    });
+    const executor = new TaskExecutor(this, this.sandbox, this.testRunner);
     
-    // TODO: Execute each step automatically
-    // For now, this is a placeholder
-    console.log('\n✨ Task planning complete. Full execution coming soon!');
-
-    // Save to memory
-    if (this.memory) {
-      await this.memory.addConversation({
-        task: options.goal,
-        steps,
-        result: 'partial', // Will be updated when execution is complete
-        filesModified: [] // Will be populated during execution
+    try {
+      const result = await executor.executeTask({
+        goal: options.goal,
+        cwd: options.cwd || process.cwd()
       });
+
+      // Save to memory
+      if (this.memory) {
+        await this.memory.addConversation({
+          task: options.goal,
+          steps: [],
+          result: result.success ? 'success' : 'failed',
+          filesModified: result.filesModified
+        });
+      }
+
+      return result;
+    } catch (error: any) {
+      // Save failed attempt to memory
+      if (this.memory) {
+        await this.memory.addConversation({
+          task: options.goal,
+          steps: [],
+          result: 'failed',
+          filesModified: []
+        });
+      }
+      throw error;
     }
   }
 

@@ -6,3 +6,4 @@ export * from './memory';
 export * from './sync';
 export * from './autocomplete';
 export * from './autocomplete-provider';
+export * from './agent-executor';

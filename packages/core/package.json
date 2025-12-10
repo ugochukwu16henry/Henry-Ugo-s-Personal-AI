@@ -9,6 +9,7 @@
   "dependencies": {
     "@henry-ai/local-ai": "workspace:*",
     "@henry-ai/tree-sitter-parser": "workspace:*",
-    "@henry-ai/vectordb": "workspace:*"
+    "@henry-ai/vectordb": "workspace:*",
+    "chokidar": "^5.0.0"
   }
 }

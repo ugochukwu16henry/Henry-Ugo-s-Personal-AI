@@ -3,6 +3,7 @@ import * as path from 'path'
 import type { CodeIndex, CodeFile, Symbol, Dependency, IndexMetadata } from './types'
 import { TreeSitterParser } from '@henry-ai/tree-sitter-parser'
 import { VectorDatabase } from '@henry-ai/vectordb'
+import chokidar from 'chokidar'
 
 /**
  * High-performance codebase indexer with Tree-sitter + LanceDB
@@ -12,6 +13,9 @@ export class CodeIndexer {
   private index: CodeIndex | null = null
   private treeSitter: TreeSitterParser
   private vectorDb: VectorDatabase
+  private watcher: chokidar.FSWatcher | null = null
+  private watchDebounceMap: Map<string, NodeJS.Timeout> = new Map()
+  private debounceDelay = 500 // 500ms debounce
 
   constructor() {
     this.treeSitter = new TreeSitterParser()
