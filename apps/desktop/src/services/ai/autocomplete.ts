@@ -5,6 +5,7 @@
  */
 
 import { AIModel, selectBestModel } from './models';
+import { UnifiedAIClient, CompletionRequest } from './api';
 
 export interface AutocompleteRequest {
   code: string;
@@ -42,9 +43,11 @@ export class AutocompleteService {
   private model: AIModel;
   private cache: Map<string, AutocompleteSuggestion[]> = new Map();
   private pendingRequests: Map<string, AbortController> = new Map();
+  private apiClient?: UnifiedAIClient;
 
-  constructor(model?: AIModel) {
+  constructor(model?: AIModel, apiClient?: UnifiedAIClient) {
     this.model = model || selectBestModel('completion');
+    this.apiClient = apiClient;
   }
 
   /**
@@ -100,25 +103,96 @@ export class AutocompleteService {
 
   /**
    * Fetch completions from the AI model
-   * Simulates API call - replace with actual model integration
+   * Uses actual API client if available, falls back to pattern matching
    */
   private async fetchFromModel(
     prefix: string,
     request: AutocompleteRequest,
     signal: AbortSignal
   ): Promise<AutocompleteSuggestion[]> {
-    // Simulate API delay (<80ms target)
-    await new Promise(resolve => setTimeout(resolve, 50));
-
     if (signal.aborted) {
       return [];
     }
 
-    // For now, return simple pattern-based suggestions
-    // In production, this would call the actual Tab model API
-    const suggestions: AutocompleteSuggestion[] = [];
+    // Try API client first
+    if (this.apiClient && this.model.supportsCodeCompletion) {
+      try {
+        const startTime = Date.now();
+        
+        // Build context-aware prompt
+        const contextPrompt = this.buildContextPrompt(prefix, request);
+        
+        const completionRequest: CompletionRequest = {
+          prompt: contextPrompt,
+          maxTokens: 50, // Short completions for speed
+          temperature: 0.1, // Low temperature for deterministic completions
+          stop: ['\n\n', '\n\n\n', '```']
+        };
 
-    // Detect common patterns
+        // Use timeout to ensure <80ms response
+        const timeoutPromise = new Promise<string>((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 75)
+        );
+
+        const completionPromise = this.apiClient.getCompletion(this.model, completionRequest);
+        const completion = await Promise.race([completionPromise, timeoutPromise]);
+
+        const elapsed = Date.now() - startTime;
+
+        // Only use if we got a response quickly enough
+        if (elapsed < 80 && completion.trim()) {
+          return [{
+            text: completion.trim(),
+            replaceRange: {
+              startLine: request.cursorLine,
+              startColumn: request.cursorColumn,
+              endLine: request.cursorLine,
+              endColumn: request.cursorColumn
+            },
+            score: 0.85,
+            metadata: { type: 'ai', source: this.model.name }
+          }];
+        }
+      } catch (error) {
+        // Fall through to pattern matching
+        console.debug('API autocomplete failed, using fallback:', error);
+      }
+    }
+
+    // Fallback to pattern-based suggestions
+    return this.getPatternBasedSuggestions(prefix, request);
+  }
+
+  /**
+   * Build context-aware prompt for autocomplete
+   */
+  private buildContextPrompt(prefix: string, request: AutocompleteRequest): string {
+    let prompt = prefix.slice(-2000); // Last 2000 chars for context
+
+    // Add language context
+    if (request.language) {
+      prompt = `// Language: ${request.language}\n${prompt}`;
+    }
+
+    // Add symbol context
+    if (request.context?.symbols && request.context.symbols.length > 0) {
+      const symbols = request.context.symbols.slice(0, 5).map(s => 
+        `${s.type} ${s.name}${s.signature ? `(${s.signature})` : ''}`
+      ).join(', ');
+      prompt = `// Available: ${symbols}\n${prompt}`;
+    }
+
+    return prompt;
+  }
+
+  /**
+   * Pattern-based fallback suggestions
+   */
+  private getPatternBasedSuggestions(
+    prefix: string,
+    request: AutocompleteRequest
+  ): AutocompleteSuggestion[] {
+    const suggestions: AutocompleteSuggestion[] = [];
     const lastLine = request.code.split('\n')[request.cursorLine - 1] || '';
     
     // Function call completion
@@ -131,8 +205,8 @@ export class AutocompleteService {
           endLine: request.cursorLine,
           endColumn: request.cursorColumn
         },
-        score: 0.8,
-        metadata: { type: 'property' }
+        score: 0.6,
+        metadata: { type: 'pattern' }
       });
     }
 
@@ -146,11 +220,12 @@ export class AutocompleteService {
           endLine: request.cursorLine,
           endColumn: request.cursorColumn
         },
-        score: 0.7
+        score: 0.5,
+        metadata: { type: 'pattern' }
       });
     }
 
-    return suggestions.slice(0, 3); // Return top 3
+    return suggestions.slice(0, 3);
   }
 
   /**
@@ -191,6 +266,13 @@ export class AutocompleteService {
   setModel(model: AIModel): void {
     this.model = model;
     this.cache.clear();
+  }
+
+  /**
+   * Set API client
+   */
+  setApiClient(apiClient: UnifiedAIClient): void {
+    this.apiClient = apiClient;
   }
 }
 

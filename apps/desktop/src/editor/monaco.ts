@@ -1,30 +1,40 @@
 /**
  * Monaco Editor Autocomplete Integration
- * Registers fast autocomplete provider for Monaco Editor
+ * Registers fast autocomplete provider for Monaco Editor with AI-powered suggestions
  */
 
 import * as monaco from 'monaco-editor';
-import { fastAutocomplete, AutocompleteManager, AutocompleteRequest } from '@henry-ai/core';
-import type { CodeIndexer } from '@henry-ai/core';
+import { AutocompleteService, type AutocompleteRequest as ServiceRequest } from '../services/ai/autocomplete';
+import { AVAILABLE_MODELS } from '../services/ai/models';
+import { UnifiedAIClient } from '../services/ai/api';
 
-let autocompleteManager: AutocompleteManager | null = null;
+let autocompleteService: AutocompleteService | null = null;
 
 /**
  * Initialize autocomplete system
  */
-export function initializeAutocomplete(manager?: AutocompleteManager, codeIndexer?: CodeIndexer) {
-  autocompleteManager = manager || new AutocompleteManager({
-    fastModel: 'phi3:mini',
-    timeout: 80,
-    useIndexer: true,
-    maxContextSymbols: 5
-  });
+export function initializeAutocomplete(apiClient?: UnifiedAIClient, modelId?: string) {
+  const model = modelId ? AVAILABLE_MODELS[modelId] : AVAILABLE_MODELS['composer-1'];
+  autocompleteService = new AutocompleteService(model, apiClient);
+  return autocompleteService;
+}
 
-  if (codeIndexer) {
-    autocompleteManager.setIndexer(codeIndexer);
+/**
+ * Update autocomplete service with new API client or model
+ */
+export function updateAutocompleteService(apiClient?: UnifiedAIClient, modelId?: string) {
+  if (!autocompleteService) {
+    initializeAutocomplete(apiClient, modelId);
+    return;
   }
 
-  return autocompleteManager;
+  if (apiClient) {
+    autocompleteService.setApiClient(apiClient);
+  }
+
+  if (modelId && AVAILABLE_MODELS[modelId]) {
+    autocompleteService.setModel(AVAILABLE_MODELS[modelId]);
+  }
 }
 
 /**
@@ -32,7 +42,7 @@ export function initializeAutocomplete(manager?: AutocompleteManager, codeIndexe
  */
 export function registerAutocompleteProvider(language: string): monaco.IDisposable {
   return monaco.languages.registerCompletionItemProvider(language, {
-    triggerCharacters: ['.', '(', '[', '{', ' '],
+    triggerCharacters: ['.', '(', '[', '{', ' ', '\n'],
     provideCompletionItems: async (model, position) => {
       try {
         const word = model.getWordUntilPosition(position);
@@ -44,79 +54,63 @@ export function registerAutocompleteProvider(language: string): monaco.IDisposab
           word.endColumn
         );
 
-        // Get prefix (text before cursor, limited to last 500 chars for performance)
-        const prefixStartLine = Math.max(1, position.lineNumber - 20);
-        const prefix = model.getValueInRange({
-          startLineNumber: prefixStartLine,
-          startColumn: 1,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column
-        });
-
-        // Get suffix (text after cursor, limited to next 100 chars)
-        const suffixEndLine = Math.min(model.getLineCount(), position.lineNumber + 5);
-        const suffix = model.getValueInRange({
-          startLineNumber: position.lineNumber,
-          startColumn: position.column,
-          endLineNumber: suffixEndLine,
-          endColumn: model.getLineMaxColumn(suffixEndLine)
-        });
-
-        // Create autocomplete request
-        const request: AutocompleteRequest = {
-          prefix: prefix.slice(-500), // Last 500 chars
-          suffix: suffix.slice(0, 100), // First 100 chars
+        // Get full code content
+        const code = model.getValue();
+        
+        // Create autocomplete request for our service
+        const serviceRequest: ServiceRequest = {
+          code,
+          cursorLine: position.lineNumber,
+          cursorColumn: position.column,
           filePath: model.uri.toString(),
-          language: model.getLanguageId(),
-          maxTokens: 20,
-          temperature: 0.1
+          language: model.getLanguageId()
         };
 
-        // Use manager if available, otherwise use direct function
-        let completion = '';
-        const startTime = Date.now();
+        // Use autocomplete service if available
+        if (autocompleteService) {
+          const startTime = Date.now();
+          const suggestions = await autocompleteService.getSuggestions(serviceRequest);
+          const elapsed = Date.now() - startTime;
 
-        if (autocompleteManager) {
-          // Use manager (includes caching)
-          const result = await autocompleteManager.getCompletions(request);
-          if (result.completions.length > 0) {
-            completion = result.completions[0];
+          if (suggestions.length === 0) {
+            return { suggestions: [] };
           }
-        } else {
-          // Fallback: use direct function
-          for await (const token of fastAutocomplete(request)) {
-            completion += token;
-            
-            // Break if taking too long
-            if (Date.now() - startTime > 75) {
-              break;
-            }
-          }
+
+          // Convert suggestions to Monaco completion items
+          const completionItems: monaco.languages.CompletionItem[] = suggestions.map((suggestion, index) => {
+            const replaceRange = new monaco.Range(
+              suggestion.replaceRange.startLine,
+              suggestion.replaceRange.startColumn,
+              suggestion.replaceRange.endLine,
+              suggestion.replaceRange.endColumn
+            );
+
+            return {
+              label: {
+                label: suggestion.text.slice(0, 50),
+                description: suggestion.metadata?.type === 'ai' ? 'AI' : 'Pattern'
+              },
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: suggestion.text,
+              detail: `AI Completion (${elapsed}ms)${suggestion.metadata?.source ? ` - ${suggestion.metadata.source}` : ''}`,
+              sortText: `0${index}`, // Prioritize AI completions
+              range: replaceRange,
+              preselect: index === 0, // Preselect first suggestion
+              documentation: {
+                value: `**AI-powered completion**\n\n\`\`\`\n${suggestion.text.slice(0, 200)}${suggestion.text.length > 200 ? '...' : ''}\n\`\`\`\n\nConfidence: ${(suggestion.score * 100).toFixed(0)}%`,
+                isTrusted: true
+              }
+            };
+          });
+
+          return {
+            suggestions: completionItems,
+            incomplete: false
+          };
         }
 
-        if (!completion || completion.trim().length === 0) {
-          return { suggestions: [] };
-        }
-
-        // Create completion item
-        const completionItem: monaco.languages.CompletionItem = {
-          label: completion.slice(0, 50), // First 50 chars as label
-          kind: monaco.languages.CompletionItemKind.Text,
-          insertText: completion,
-          detail: `AI Completion${autocompleteManager ? ` (${Date.now() - startTime}ms)` : ''}`,
-          sortText: '0', // Prioritize AI completions
-          range,
-          preselect: false,
-          documentation: {
-            value: `**AI-powered completion**\n\n${completion.slice(0, 200)}${completion.length > 200 ? '...' : ''}`,
-            isTrusted: true
-          }
-        };
-
-        return {
-          suggestions: [completionItem],
-          incomplete: false
-        };
+        // No autocomplete service available
+        return { suggestions: [] };
       } catch (error) {
         console.warn('Autocomplete error:', error);
         // Return empty suggestions on error (don't break editor)
@@ -147,18 +141,9 @@ export function setupAutocompleteForAllLanguages(): monaco.IDisposable[] {
 }
 
 /**
- * Get autocomplete manager instance
+ * Get autocomplete service instance
  */
-export function getAutocompleteManager(): AutocompleteManager | null {
-  return autocompleteManager;
-}
-
-/**
- * Update indexer for context-aware completions
- */
-export function updateIndexer(newIndexer: CodeIndexer) {
-  if (autocompleteManager) {
-    autocompleteManager.setIndexer(newIndexer);
-  }
+export function getAutocompleteService(): AutocompleteService | null {
+  return autocompleteService;
 }
 

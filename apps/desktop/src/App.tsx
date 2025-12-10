@@ -16,6 +16,11 @@ import { TabBar, type Tab } from './components/TabBar';
 import { DiffViewer } from './components/DiffViewer';
 import { useDiffViewer } from './hooks/useDiffViewer';
 import { FiCode } from 'react-icons/fi';
+import { useEffect } from 'react';
+import { initializeAutocomplete, setupAutocompleteForAllLanguages, updateAutocompleteService } from './editor/monaco';
+import { UnifiedAIClient } from './services/ai/api';
+import { APIKeyStorage } from './services/ai/storage';
+import { AVAILABLE_MODELS, DEFAULT_MODEL_SETTINGS, type ModelSettings } from './services/ai/models';
 import './App.css';
 
 function App() {
@@ -37,6 +42,8 @@ console.log(message)
   const [showAgentPanel, setShowAgentPanel] = useState(true);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
+  const [selectedCode, setSelectedCode] = useState<string>('');
+  const [editorInstance, setEditorInstance] = useState<any>(null);
 
   const diffViewer = useDiffViewer();
 
@@ -542,12 +549,28 @@ Enjoy your project!`
   }, [showTerminal, showCommandPalette, handleSaveFile, handleOpenFile, handleNewFile]);
 
   const handleEditorMount = (editor: any) => {
+    setEditorInstance(editor);
+    
     editor.onDidChangeCursorPosition((e: any) => {
       setCursorPosition({
         line: e.position.lineNumber,
         column: e.position.column
       });
     });
+
+    // Track selected code
+    editor.onDidChangeCursorSelection((e: any) => {
+      const selection = e.selection;
+      if (selection && !selection.isEmpty()) {
+        const selectedText = editor.getModel().getValueInRange(selection);
+        setSelectedCode(selectedText);
+      } else {
+        setSelectedCode('');
+      }
+    });
+
+    // Initialize autocomplete (will be integrated with Monaco)
+    // For now, Monaco's built-in autocomplete will work
   };
 
   const commandPaletteCommands = useMemo(() => [
@@ -740,6 +763,8 @@ Enjoy your project!`
             isOpen={showAgentPanel}
             onClose={() => setShowAgentPanel(false)}
             onCommand={handleAgentCommand}
+            selectedCode={selectedCode}
+            currentFile={tabs.find(t => t.id === activeTabId)?.path}
           />
         )}
       </div>

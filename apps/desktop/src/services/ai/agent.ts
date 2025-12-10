@@ -4,6 +4,7 @@
  */
 
 import { AIModel, selectBestModel } from './models';
+import { UnifiedAIClient, ChatRequest } from './api';
 
 export enum AutonomyLevel {
   TAB = 'tab',              // Light assist - only autocomplete
@@ -59,10 +60,12 @@ export class AgentService {
   private autonomyLevel: AutonomyLevel;
   private codebaseContext?: CodebaseContext;
   private tasks: Map<string, AgentTask> = new Map();
+  private apiClient?: UnifiedAIClient;
 
-  constructor(model?: AIModel, autonomyLevel: AutonomyLevel = AutonomyLevel.CMD_K) {
+  constructor(model?: AIModel, autonomyLevel: AutonomyLevel = AutonomyLevel.CMD_K, apiClient?: UnifiedAIClient) {
     this.model = model || selectBestModel('codegen');
     this.autonomyLevel = autonomyLevel;
+    this.apiClient = apiClient;
   }
 
   /**
@@ -70,9 +73,49 @@ export class AgentService {
    * Returns a step-by-step plan that can be reviewed and approved
    */
   async planTask(description: string): Promise<AgentPlan> {
-    // In production, this would use the AI model to generate a plan
-    // For now, return a structured plan based on common patterns
-    
+    // Try to use AI model to generate a plan if API client is available
+    if (this.apiClient) {
+      try {
+        const chatRequest: ChatRequest = {
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a code planning assistant. Generate step-by-step plans for coding tasks. Return plans in a structured format.'
+            },
+            {
+              role: 'user',
+              content: `Generate a step-by-step plan for: ${description}\n\nReturn the plan as a numbered list of clear, actionable steps.`
+            }
+          ],
+          maxTokens: 1024,
+          temperature: 0.7
+        };
+
+        const response = await this.apiClient.getChatCompletion(this.model, chatRequest);
+        
+        // Parse the response to extract steps (simplified - in production use structured output)
+        const lines = response.split('\n').filter(line => /^\d+\./.test(line.trim()));
+        const steps: AgentPlanStep[] = lines.map((line, index) => ({
+          id: (index + 1).toString(),
+          description: line.replace(/^\d+\.\s*/, '').trim(),
+          type: this.inferStepType(line),
+          status: 'pending'
+        }));
+
+        if (steps.length > 0) {
+          return {
+            steps,
+            estimatedTime: steps.length * 30,
+            filesToModify: steps.filter(s => s.type === 'write').map(s => s.target!).filter(Boolean),
+            risks: []
+          };
+        }
+      } catch (error) {
+        console.warn('AI planning failed, using fallback:', error);
+      }
+    }
+
+    // Fallback to pattern-based planning
     const steps: AgentPlanStep[] = [];
     const lowerDesc = description.toLowerCase();
 
@@ -220,6 +263,26 @@ export class AgentService {
   }
 
   /**
+   * Infer step type from description
+   */
+  private inferStepType(description: string): AgentPlanStep['type'] {
+    const lower = description.toLowerCase();
+    if (lower.includes('read') || lower.includes('search') || lower.includes('find')) {
+      return 'read';
+    }
+    if (lower.includes('write') || lower.includes('create') || lower.includes('add')) {
+      return 'write';
+    }
+    if (lower.includes('execute') || lower.includes('run') || lower.includes('command')) {
+      return 'execute';
+    }
+    if (lower.includes('test')) {
+      return 'test';
+    }
+    return 'read';
+  }
+
+  /**
    * Set autonomy level
    */
   setAutonomyLevel(level: AutonomyLevel): void {
@@ -231,6 +294,13 @@ export class AgentService {
    */
   updateCodebaseContext(context: CodebaseContext): void {
     this.codebaseContext = context;
+  }
+
+  /**
+   * Set API client
+   */
+  setApiClient(apiClient: UnifiedAIClient): void {
+    this.apiClient = apiClient;
   }
 }
 
