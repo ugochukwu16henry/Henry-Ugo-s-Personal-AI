@@ -4,3 +4,5 @@ export * from './security';
 export * from './storage';
 export * from './memory';
 export * from './sync';
+export * from './autocomplete';
+export * from './autocomplete-provider';
