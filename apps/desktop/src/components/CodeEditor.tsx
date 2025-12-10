@@ -33,7 +33,7 @@ export function CodeEditor({
         if (isCancelled) return
 
         // Initialize autocomplete manager
-        const manager = initializeAutocomplete()
+        initializeAutocomplete()
         
         // Setup autocomplete for all languages
         const disposables = setupAutocompleteForAllLanguages()
