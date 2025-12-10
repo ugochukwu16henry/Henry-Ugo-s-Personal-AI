@@ -65,7 +65,7 @@ export class AgentService {
   private codebaseContext?: CodebaseContext;
   private tasks: Map<string, AgentTask> = new Map();
   private apiClient?: UnifiedAIClient;
-  private terminalExecutor?: TerminalExecutor;
+  private terminalExecutor?: TerminalExecutorInterface;
 
   constructor(
     model?: AIModel,
@@ -343,7 +343,7 @@ export class AgentService {
   /**
    * Set terminal executor
    */
-  setTerminalExecutor(executor: TerminalExecutor): void {
+  setTerminalExecutor(executor: TerminalExecutorInterface): void {
     this.terminalExecutor = executor;
   }
 }

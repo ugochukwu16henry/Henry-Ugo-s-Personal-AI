@@ -5,6 +5,17 @@
 
 import { Command } from '@tauri-apps/plugin-shell';
 
+// Helper function to get platform
+async function getPlatform(): Promise<string> {
+  try {
+    const { platform } = await import('@tauri-apps/plugin-os');
+    const platformName = await platform.platform();
+    return platformName === 'windows' ? 'win32' : 'unix';
+  } catch {
+    return 'win32'; // Default fallback
+  }
+}
+
 export interface CommandResult {
   stdout: string;
   stderr: string;
@@ -39,8 +50,6 @@ export class TerminalExecutor {
         // Note: Tauri shell Command API doesn't directly support cwd
         // This may need to be handled differently
       }
-
-      const output = await shellProcess.execute();
 
       const result = await shellProcess.execute();
 
@@ -169,16 +178,7 @@ export class TerminalExecutor {
    * Detect platform
    */
   private async detectPlatform(): Promise<string> {
-    // Try to detect from Tauri API
-    try {
-      const { platform } = await import('@tauri-apps/plugin-os');
-      const platformName = await platform.platform();
-      return platformName === 'windows' ? 'win32' : 'unix';
-    } catch {
-      // Fallback: assume Windows for Tauri desktop app
-      // This is a reasonable default since we're in a desktop environment
-      return 'win32';
-    }
+    return await getPlatform();
   }
 }
 

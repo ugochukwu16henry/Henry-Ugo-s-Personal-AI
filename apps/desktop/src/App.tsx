@@ -765,6 +765,10 @@ Enjoy your project!`
             <Terminal 
               height={300}
               onClose={() => setShowTerminal(false)}
+              onCommandExecute={(command, result) => {
+                // Agent can use terminal results
+                console.log(`Terminal executed: ${command}`, result);
+              }}
             />
           )}
         </div>

@@ -36,7 +36,8 @@ export function AgentPanel({
   onClose, 
   onCommand,
   selectedCode,
-  currentFile 
+  currentFile,
+  terminalExecutor
 }: AgentPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -61,9 +62,17 @@ export function AgentPanel({
     new AgentService(
       AVAILABLE_MODELS[modelSettings.selectedModel],
       autonomyLevel,
-      apiClient
+      apiClient,
+      terminalExecutor
     )
   ).current;
+
+  // Update terminal executor when it changes
+  useEffect(() => {
+    if (terminalExecutor) {
+      agentService.setTerminalExecutor(terminalExecutor);
+    }
+  }, [terminalExecutor, agentService]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
