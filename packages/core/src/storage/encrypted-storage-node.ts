@@ -48,12 +48,12 @@ export class EncryptedStorageNode {
     }
 
     const iv = randomBytes(12);
-    const cipher = createCipheriv(this.algorithm, this.encryptionKey, iv);
+    const cipher = createCipheriv(this.algorithm, this.encryptionKey, iv) as any;
     
     let encrypted = cipher.update(data, 'utf8');
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     
-    const authTag = cipher.getAuthTag();
+    const authTag = (cipher as any).getAuthTag();
     
     // Combine IV + authTag + encrypted data
     const combined = Buffer.concat([iv, authTag, encrypted]);
@@ -76,8 +76,8 @@ export class EncryptedStorageNode {
     const authTag = combined.slice(12, 28);
     const encrypted = combined.slice(28);
     
-    const decipher = createDecipheriv(this.algorithm, this.encryptionKey, iv);
-    decipher.setAuthTag(authTag);
+    const decipher = createDecipheriv(this.algorithm, this.encryptionKey, iv) as any;
+    (decipher as any).setAuthTag(authTag);
     
     let decrypted = decipher.update(encrypted);
     decrypted = Buffer.concat([decrypted, decipher.final()]);

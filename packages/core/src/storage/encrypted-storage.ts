@@ -1,10 +1,18 @@
 /**
  * Encrypted Storage Wrapper
  * Encrypts data before storing in any storage adapter
+ * Uses Web Crypto API in browser, falls back to Node.js crypto in Node
  */
 
 import type { StorageAdapter } from './adapter';
 import { createStorageAdapter } from './adapter';
+
+/**
+ * Check if running in browser environment
+ */
+function isBrowser(): boolean {
+  return typeof window !== 'undefined' && typeof crypto !== 'undefined' && 'subtle' in crypto;
+}
 
 /**
  * Simple encryption using Web Crypto API
