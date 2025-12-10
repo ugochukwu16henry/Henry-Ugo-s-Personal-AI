@@ -1,8 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Editor } from '@monaco-editor/react';
 import { HenryAgent, executeCommand, defaultCommandRegistry } from '@henry-ai/core';
+import { MenuBar } from './components/MenuBar';
+import { FileTree } from './components/FileTree';
+import { Terminal } from './components/Terminal';
+import { CommandPalette } from './components/CommandPalette';
+import { StatusBar } from './components/StatusBar';
+import { AgentPanel } from './components/AgentPanel';
+import { TabBar, type Tab } from './components/TabBar';
 import { DiffViewer } from './components/DiffViewer';
 import { useDiffViewer } from './hooks/useDiffViewer';
+import { FiCode } from 'react-icons/fi';
 import './App.css';
 
 function App() {
@@ -18,50 +26,66 @@ function greet(name: string): string {
 const message = greet('Henry')
 console.log(message)
 `);
+  const [tabs, setTabs] = useState<Tab[]>([
+    { id: '1', name: 'example.ts', path: '/example.ts', icon: <FiCode /> }
+  ]);
+  const [activeTabId, setActiveTabId] = useState('1');
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [showAgentPanel, setShowAgentPanel] = useState(true);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
 
   const diffViewer = useDiffViewer();
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Command palette: Ctrl+K or Cmd+K
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(true);
+      }
+      // Toggle terminal: Ctrl+`
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault();
+        setShowTerminal(!showTerminal);
+      }
+      // Escape to close command palette
+      if (e.key === 'Escape' && showCommandPalette) {
+        setShowCommandPalette(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTerminal, showCommandPalette]);
 
   const runAgent = async () => {
     try {
       const agent = new HenryAgent();
       await agent.initializeMemory();
       
-      // Check if input is a command
       if (defaultCommandRegistry.isCommand(task)) {
-        // Execute command
         const result = await executeCommand(task, agent, { 
           cwd: typeof process !== 'undefined' ? process.cwd() : undefined 
         });
         setOutput(result.output);
-        
-        if (!result.success) {
-          console.error('Command failed:', result.output);
-        }
       } else {
-        // Regular task execution
-        // Plan the task
         const steps = await agent.plan(task);
         setOutput(steps.join('\n'));
         
-        // For demonstration: show diff preview for editing current file
-        // Note: In a real implementation, you'd specify the actual file path
         if (code && task.toLowerCase().includes('edit')) {
           const filePath = './example.ts';
-          // Preview edit
           const preview = await agent.previewEdit(filePath, task);
           
-          // Show diff viewer
           diffViewer.showDiff(
             preview,
             filePath,
             async () => {
-              // Apply the edit
               await agent.applyStagedEdit(filePath, true);
-              // Update editor content with new code
               setCode(preview.newContent);
             },
             () => {
-              // Reject - do nothing, just discard
               agent.discardEdit(filePath);
             }
           );
@@ -73,70 +97,138 @@ console.log(message)
     }
   };
 
+  const handleEditorMount = (editor: any, monaco: any) => {
+    editor.onDidChangeCursorPosition((e: any) => {
+      setCursorPosition({
+        line: e.position.lineNumber,
+        column: e.position.column
+      });
+    });
+  };
+
   return (
-    <div className="app-container">
-      <div className="sidebar">
-        <h2>Henry AI</h2>
-        <nav>
-          <button>Files</button>
-          <button>Search</button>
-          <button>AI Chat</button>
-        </nav>
-        <div style={{ marginTop: '2rem', padding: '1rem' }}>
-          <input 
-            value={task} 
-            onChange={e => setTask(e.target.value)}
-            placeholder="Enter a task or command (/doc, /test, /pr)..."
-            style={{ 
-              width: '100%', 
-              padding: '0.5rem',
-              marginBottom: '0.5rem',
-              background: '#1e1e1e',
-              border: '1px solid #3e3e42',
-              color: '#fff',
-              borderRadius: '4px'
+    <div className="cursor-app">
+      <MenuBar />
+      
+      <div className="cursor-layout">
+        {/* Left Sidebar */}
+        <div className="cursor-sidebar">
+          <FileTree 
+            onFileSelect={(path) => {
+              // Add file to tabs if not already open
+              const existingTab = tabs.find(t => t.path === path);
+              if (!existingTab) {
+                const newTab: Tab = {
+                  id: Date.now().toString(),
+                  name: path.split('/').pop() || 'Untitled',
+                  path,
+                  icon: <FiCode />
+                };
+                setTabs([...tabs, newTab]);
+                setActiveTabId(newTab.id);
+              } else {
+                setActiveTabId(existingTab.id);
+              }
             }}
           />
-          <button 
-            onClick={runAgent}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              background: '#0e639c',
-              border: 'none',
-              color: '#fff',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Run Henry's AI
-          </button>
         </div>
-      </div>
-      <div className="editor-container">
-        <Editor 
-          height="100%" 
-          language="javascript"
-          value={code}
-          onChange={(value) => setCode(value || '')}
-          theme="vs-dark"
-        />
-        {output && (
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: '#252526',
-            borderTop: '1px solid #3e3e42',
-            padding: '1rem',
-            maxHeight: '200px',
-            overflow: 'auto'
-          }}>
-            <pre style={{ color: '#fff', margin: 0 }}>{output}</pre>
+
+        {/* Main Editor Area */}
+        <div className="cursor-editor-area">
+          <TabBar
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onTabClick={setActiveTabId}
+            onTabClose={(tabId) => {
+              const newTabs = tabs.filter(t => t.id !== tabId);
+              setTabs(newTabs);
+              if (activeTabId === tabId && newTabs.length > 0) {
+                setActiveTabId(newTabs[0].id);
+              }
+            }}
+          />
+          
+          <div className="cursor-editor-container">
+            <Editor
+              height="100%"
+              language="typescript"
+              value={code}
+              onChange={(value) => setCode(value || '')}
+              theme="vs-dark"
+              onMount={handleEditorMount}
+              options={{
+                fontSize: 14,
+                fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                lineNumbers: 'on',
+                minimap: { enabled: true },
+                scrollBeyondLastLine: false,
+                wordWrap: 'on',
+                automaticLayout: true
+              }}
+            />
           </div>
+
+          {/* Terminal */}
+          {showTerminal && (
+            <Terminal 
+              height={300}
+              onClose={() => setShowTerminal(false)}
+            />
+          )}
+        </div>
+
+        {/* Right Agent Panel */}
+        {showAgentPanel && (
+          <AgentPanel
+            isOpen={showAgentPanel}
+            onClose={() => setShowAgentPanel(false)}
+            onCommand={setTask}
+          />
         )}
       </div>
+
+      {/* Status Bar */}
+      <StatusBar
+        line={cursorPosition.line}
+        column={cursorPosition.column}
+        language="typescript"
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        commands={[
+          ...defaultCommandRegistry.getAll().map(cmd => ({
+            id: cmd.name,
+            label: `/${cmd.name}`,
+            category: 'Commands',
+            action: () => {
+              setTask(`/${cmd.name} `);
+              setShowCommandPalette(false);
+            }
+          })),
+          {
+            id: 'terminal:toggle',
+            label: 'Toggle Terminal',
+            category: 'View',
+            shortcut: 'Ctrl+`',
+            action: () => {
+              setShowTerminal(!showTerminal);
+              setShowCommandPalette(false);
+            }
+          },
+          {
+            id: 'panel:agent',
+            label: 'Toggle Agent Panel',
+            category: 'View',
+            action: () => {
+              setShowAgentPanel(!showAgentPanel);
+              setShowCommandPalette(false);
+            }
+          }
+        ]}
+      />
 
       {/* Diff Viewer Modal */}
       {diffViewer.isOpen && diffViewer.diff && (

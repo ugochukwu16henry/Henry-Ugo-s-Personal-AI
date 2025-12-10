@@ -1,17 +1,7 @@
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #1e1e1e;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/**
+ * Cursor-style Theme
+ * Background: #121212 (exact Cursor color)
+ */
 
 * {
   margin: 0;
@@ -19,11 +9,29 @@
   box-sizing: border-box;
 }
 
+:root {
+  --cursor-bg: #121212;
+  --cursor-sidebar-bg: #252526;
+  --cursor-editor-bg: #1e1e1e;
+  --cursor-border: #3e3e42;
+  --cursor-text: #cccccc;
+  --cursor-text-muted: #858585;
+  --cursor-hover: #2a2d2e;
+  --cursor-active: #094771;
+  --cursor-status-bg: #007acc;
+  --cursor-menu-bg: #252526;
+}
+
 body {
   margin: 0;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background-color: var(--cursor-bg);
+  color: var(--cursor-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -31,50 +39,75 @@ body {
   height: 100%;
 }
 
-.app-container {
+.cursor-app {
   display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
+  background-color: var(--cursor-bg);
+  overflow: hidden;
 }
 
-.sidebar {
-  width: 250px;
-  background-color: #252526;
-  border-right: 1px solid #3e3e42;
+.cursor-layout {
   display: flex;
-  flex-direction: column;
-  padding: 1rem;
-}
-
-.sidebar h2 {
-  color: #fff;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
-}
-
-.sidebar nav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sidebar button {
-  padding: 0.75rem;
-  background-color: transparent;
-  border: none;
-  color: #ccc;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-.sidebar button:hover {
-  background-color: #2a2d2e;
-}
-
-.editor-container {
   flex: 1;
-  height: 100%;
+  overflow: hidden;
+}
+
+.cursor-sidebar {
+  width: 250px;
+  min-width: 200px;
+  background-color: var(--cursor-sidebar-bg);
+  border-right: 1px solid var(--cursor-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cursor-editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--cursor-editor-bg);
+  overflow: hidden;
+}
+
+.cursor-editor-container {
+  flex: 1;
   position: relative;
+  overflow: hidden;
+}
+
+/* Monaco Editor theme adjustments */
+.monaco-editor {
+  background-color: var(--cursor-editor-bg) !important;
+}
+
+.monaco-editor .margin {
+  background-color: var(--cursor-editor-bg) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cursor-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+/* Selection */
+::selection {
+  background-color: var(--cursor-active);
+  color: #ffffff;
 }
