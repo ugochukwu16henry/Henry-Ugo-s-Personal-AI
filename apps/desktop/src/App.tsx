@@ -17,11 +17,11 @@ import { DiffViewer } from './components/DiffViewer';
 import { CodeReviewPanel } from './components/CodeReviewPanel';
 import { useDiffViewer } from './hooks/useDiffViewer';
 import { FiCode } from 'react-icons/fi';
-import { useEffect } from 'react';
-import { initializeAutocomplete, setupAutocompleteForAllLanguages, updateAutocompleteService } from './editor/monaco';
 import { UnifiedAIClient } from './services/ai/api';
-import { APIKeyStorage } from './services/ai/storage';
 import { AVAILABLE_MODELS, DEFAULT_MODEL_SETTINGS, type ModelSettings } from './services/ai/models';
+import { TerminalExecutor } from './services/terminal/executor';
+import { RulesMemoryService } from './services/rules/memory';
+import { CodebaseIntelligenceService } from './services/codebase/intelligence';
 import './App.css';
 
 function App() {
@@ -46,6 +46,13 @@ console.log(message)
   const [selectedCode, setSelectedCode] = useState<string>('');
   const [editorInstance, setEditorInstance] = useState<any>(null);
   const [showCodeReview, setShowCodeReview] = useState(false);
+  const [apiClient] = useState<UnifiedAIClient>(new UnifiedAIClient());
+  const [modelSettings] = useState<ModelSettings>(DEFAULT_MODEL_SETTINGS);
+  const [terminalExecutor] = useState(() => new TerminalExecutor());
+  const [rulesService] = useState(() => new RulesMemoryService());
+  const [codebaseIntelligence] = useState(() => 
+    new CodebaseIntelligenceService(AVAILABLE_MODELS[DEFAULT_MODEL_SETTINGS.selectedModel], apiClient)
+  );
 
   const diffViewer = useDiffViewer();
 
@@ -571,8 +578,12 @@ Enjoy your project!`
       }
     });
 
-    // Initialize autocomplete (will be integrated with Monaco)
-    // For now, Monaco's built-in autocomplete will work
+    // Index file in codebase intelligence for semantic search
+    const currentFilePath = tabs.find(t => t.id === activeTabId)?.path;
+    if (currentFilePath && code) {
+      const language = editor.getModel()?.getLanguageId() || 'typescript';
+      codebaseIntelligence.indexFile(currentFilePath, code, language);
+    }
   };
 
   const commandPaletteCommands = useMemo(() => [
@@ -781,6 +792,7 @@ Enjoy your project!`
             onCommand={handleAgentCommand}
             selectedCode={selectedCode}
             currentFile={tabs.find(t => t.id === activeTabId)?.path}
+            terminalExecutor={terminalExecutor}
           />
         )}
       </div>

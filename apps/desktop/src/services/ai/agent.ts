@@ -5,10 +5,7 @@
 
 import { AIModel, selectBestModel } from './models';
 import { UnifiedAIClient, ChatRequest } from './api';
-
-export interface TerminalExecutor {
-  execute(command: string, args?: string[]): Promise<{ stdout: string; stderr: string; success: boolean }>;
-}
+import { TerminalExecutor } from '../terminal/executor';
 
 export enum AutonomyLevel {
   TAB = 'tab',              // Light assist - only autocomplete
@@ -65,7 +62,7 @@ export class AgentService {
   private codebaseContext?: CodebaseContext;
   private tasks: Map<string, AgentTask> = new Map();
   private apiClient?: UnifiedAIClient;
-  private terminalExecutor?: TerminalExecutorInterface;
+  private terminalExecutor?: TerminalExecutor;
 
   constructor(
     model?: AIModel,
@@ -343,7 +340,7 @@ export class AgentService {
   /**
    * Set terminal executor
    */
-  setTerminalExecutor(executor: TerminalExecutorInterface): void {
+  setTerminalExecutor(executor: TerminalExecutor): void {
     this.terminalExecutor = executor;
   }
 }

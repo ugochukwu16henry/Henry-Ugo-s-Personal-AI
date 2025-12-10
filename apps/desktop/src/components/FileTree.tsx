@@ -27,6 +27,7 @@ interface FileNode {
 
 interface FileTreeProps {
   onFileSelect?: (path: string) => void;
+  onFileOpen?: (path: string) => void;
   rootPath?: string;
 }
 
@@ -66,7 +67,7 @@ function FileTreeNode({
   const [expanded, setExpanded] = useState(node.expanded ?? false);
   const [isLoading, setIsLoading] = useState(false);
   const [children, setChildren] = useState<FileNode[]>(node.children || []);
-  const isFolder = node.type === 'folder' || node.type === 'directory';
+  const isFolder = node.type === 'folder';
 
   const handleClick = async () => {
     if (isFolder) {

@@ -5,12 +5,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { FiMessageSquare, FiSend, FiX, FiMinimize2, FiZap } from 'react-icons/fi';
 import { ModelSelector } from './ModelSelector';
-import { AutonomySlider, AutonomyLevel } from './AutonomySlider';
+import { AutonomySlider } from './AutonomySlider';
+import { AutonomyLevel } from '../services/ai/agent';
 import { SlashCommandService, DEFAULT_SLASH_COMMANDS } from '../services/ai/slashCommands';
 import { AgentService, type AgentPlan } from '../services/ai/agent';
 import { AVAILABLE_MODELS, DEFAULT_MODEL_SETTINGS, type ModelSettings } from '../services/ai/models';
 import { UnifiedAIClient } from '../services/ai/api';
 import { PlanApproval } from './PlanApproval';
+import { TerminalExecutor } from '../services/terminal/executor';
 import './AgentPanel.css';
 
 interface Message {
@@ -29,6 +31,7 @@ interface AgentPanelProps {
   onCommand?: (command: string) => Promise<string | void> | void;
   selectedCode?: string;
   currentFile?: string;
+  terminalExecutor: TerminalExecutor;
 }
 
 export function AgentPanel({ 
@@ -386,148 +389,6 @@ export function AgentPanel({
             className="agent-panel-send"
             onClick={handleSend}
             disabled={!input.trim() || isSending}
-          >
-            <FiSend size={16} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-    setInput('');
-
-    // Show loading message
-    const loadingMessageId = (Date.now() + 1).toString();
-    const loadingMessage: Message = {
-      id: loadingMessageId,
-      role: 'assistant',
-      content: 'Thinking...',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, loadingMessage]);
-
-    try {
-      // Call the agent command handler
-      const response = await onCommand?.(userInput);
-      
-      // Remove loading message and add actual response
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== loadingMessageId);
-        if (response && typeof response === 'string') {
-          filtered.push({
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: response,
-            timestamp: new Date()
-          });
-        } else if (!response) {
-          // No response from agent, show default message
-          filtered.push({
-            id: Date.now().toString(),
-            role: 'assistant',
-            content: 'Command executed. Check the console or editor for results.',
-            timestamp: new Date()
-          });
-        }
-        return filtered;
-      });
-    } catch (error: any) {
-      // Remove loading message and show error
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== loadingMessageId);
-        filtered.push({
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: `Error: ${error?.message || 'Something went wrong'}`,
-          timestamp: new Date()
-        });
-        return filtered;
-      });
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  if (!isOpen) return null;
-
-  if (isMinimized) {
-    return (
-      <div className="agent-panel-minimized">
-        <div className="agent-panel-header" onClick={() => setIsMinimized(false)}>
-          <FiMessageSquare size={14} />
-          <span>Agent</span>
-          <button
-            className="agent-panel-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
-          >
-            <FiX size={14} />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="agent-panel">
-      <div className="agent-panel-header">
-        <div className="agent-panel-header-left">
-          <FiMessageSquare size={14} />
-          <span>Agent</span>
-        </div>
-        <div className="agent-panel-header-right">
-          <button
-            className="agent-panel-button"
-            onClick={() => setIsMinimized(true)}
-            title="Minimize"
-          >
-            <FiMinimize2 size={14} />
-          </button>
-          <button
-            className="agent-panel-button"
-            onClick={onClose}
-            title="Close"
-          >
-            <FiX size={14} />
-          </button>
-        </div>
-      </div>
-      <div className="agent-panel-content">
-        <div className="agent-panel-messages">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`agent-panel-message agent-panel-message-${message.role}`}
-            >
-              <div className="agent-panel-message-content">
-                {message.content}
-              </div>
-              <div className="agent-panel-message-time">
-                {message.timestamp.toLocaleTimeString()}
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="agent-panel-input-container">
-          <textarea
-            className="agent-panel-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask me anything... (Enter to send, Shift+Enter for new line)"
-            rows={3}
-          />
-          <button
-            className="agent-panel-send"
-            onClick={handleSend}
-            disabled={!input.trim()}
           >
             <FiSend size={16} />
           </button>

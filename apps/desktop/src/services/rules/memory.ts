@@ -217,14 +217,12 @@ export class RulesMemoryService {
 
   /**
    * Parse rules file (.mdc format)
-   * Format:
-   * ```mdc
-   * # Scope: apps/dashboard/**/*
+   * Format example:
+   * - Scope: apps/dashboard with wildcards
+   * - Rule text follows the scope declaration
+   * Example:
+   * # Scope: apps/dashboard/...
    * Use React Server Components
-   * 
-   * # Scope: **/*.ts
-   * Validate all inputs
-   * ```
    */
   private parseRulesFile(content: string): ProjectRule[] {
     const rules: ProjectRule[] = [];

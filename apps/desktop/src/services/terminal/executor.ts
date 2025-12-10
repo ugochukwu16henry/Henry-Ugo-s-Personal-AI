@@ -43,20 +43,31 @@ export class TerminalExecutor {
       }
 
       // Use Tauri shell plugin to execute command
-      const shellProcess = Command.create(cmdName, cmdArgs);
+      // Handle working directory by wrapping command
+      let shellProcess: Command;
       
-      // Set working directory if provided
       if (cwd) {
-        // Note: Tauri shell Command API doesn't directly support cwd
-        // This may need to be handled differently
+        const platformName = await getPlatform();
+        if (platformName === 'win32') {
+          // On Windows, use cmd with /C to change directory
+          const fullCommand = `cd /d "${cwd}" && ${cmdName} ${cmdArgs.join(' ')}`;
+          shellProcess = Command.create('cmd', ['/C', fullCommand]);
+        } else {
+          // On Unix, use sh -c with cd
+          const fullCommand = `cd "${cwd}" && ${cmdName} ${cmdArgs.join(' ')}`;
+          shellProcess = Command.create('sh', ['-c', fullCommand]);
+        }
+      } else {
+        shellProcess = Command.create(cmdName, cmdArgs);
       }
 
       const result = await shellProcess.execute();
 
-      // Tauri shell Command returns stdout/stderr as strings
-      const stdout = result.stdout || '';
-      const stderr = result.stderr || '';
-      const exitCode = result.code || 0;
+      // Tauri shell Command returns output object with stdout/stderr
+      // The exact structure may vary, so we handle both possibilities
+      const stdout = (typeof result.stdout === 'string' ? result.stdout : '') || '';
+      const stderr = (typeof result.stderr === 'string' ? result.stderr : '') || '';
+      const exitCode = (typeof result.code === 'number' ? result.code : result.exitCode) || 0;
 
       return {
         stdout,
