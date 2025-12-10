@@ -16,101 +16,115 @@ interface MenuItem {
   }>;
 }
 
-export function MenuBar() {
+interface MenuBarProps {
+  onNewFile?: () => void;
+  onOpenFile?: () => void;
+  onSaveFile?: () => void;
+  onToggleTerminal?: () => void;
+  onToggleCommandPalette?: () => void;
+}
+
+export function MenuBar({ 
+  onNewFile, 
+  onOpenFile, 
+  onSaveFile,
+  onToggleTerminal,
+  onToggleCommandPalette
+}: MenuBarProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   const menus: MenuItem[] = [
     {
       label: 'File',
       items: [
-        { label: 'New File', shortcut: 'Ctrl+N', action: () => console.log('New File') },
-        { label: 'New Window', shortcut: 'Ctrl+Shift+N', action: () => console.log('New Window') },
-        { label: 'Open File...', shortcut: 'Ctrl+O', action: () => console.log('Open File') },
-        { label: 'Open Folder...', shortcut: 'Ctrl+K Ctrl+O', action: () => console.log('Open Folder') },
+        { label: 'New File', shortcut: 'Ctrl+N', action: onNewFile || (() => {}) },
+        { label: 'New Window', shortcut: 'Ctrl+Shift+N', action: () => {} },
+        { label: 'Open File...', shortcut: 'Ctrl+O', action: onOpenFile || (() => {}) },
+        { label: 'Open Folder...', shortcut: 'Ctrl+K Ctrl+O', action: () => {} },
         { separator: true },
-        { label: 'Save', shortcut: 'Ctrl+S', action: () => console.log('Save') },
-        { label: 'Save As...', shortcut: 'Ctrl+Shift+S', action: () => console.log('Save As') },
+        { label: 'Save', shortcut: 'Ctrl+S', action: onSaveFile || (() => {}) },
+        { label: 'Save As...', shortcut: 'Ctrl+Shift+S', action: onSaveFile || (() => {}) },
         { separator: true },
-        { label: 'Exit', action: () => console.log('Exit') }
+        { label: 'Exit', action: () => window.close() }
       ]
     },
     {
       label: 'Edit',
       items: [
-        { label: 'Undo', shortcut: 'Ctrl+Z', action: () => console.log('Undo') },
-        { label: 'Redo', shortcut: 'Ctrl+Y', action: () => console.log('Redo') },
+        { label: 'Undo', shortcut: 'Ctrl+Z', action: () => {} },
+        { label: 'Redo', shortcut: 'Ctrl+Y', action: () => {} },
         { separator: true },
-        { label: 'Cut', shortcut: 'Ctrl+X', action: () => console.log('Cut') },
-        { label: 'Copy', shortcut: 'Ctrl+C', action: () => console.log('Copy') },
-        { label: 'Paste', shortcut: 'Ctrl+V', action: () => console.log('Paste') },
+        { label: 'Cut', shortcut: 'Ctrl+X', action: () => {} },
+        { label: 'Copy', shortcut: 'Ctrl+C', action: () => {} },
+        { label: 'Paste', shortcut: 'Ctrl+V', action: () => {} },
         { separator: true },
-        { label: 'Find', shortcut: 'Ctrl+F', action: () => console.log('Find') },
-        { label: 'Replace', shortcut: 'Ctrl+H', action: () => console.log('Replace') }
+        { label: 'Find', shortcut: 'Ctrl+F', action: () => {} },
+        { label: 'Replace', shortcut: 'Ctrl+H', action: () => {} }
       ]
     },
     {
       label: 'Selection',
       items: [
-        { label: 'Select All', shortcut: 'Ctrl+A', action: () => console.log('Select All') },
-        { label: 'Expand Selection', shortcut: 'Shift+Alt+Right', action: () => console.log('Expand Selection') },
-        { label: 'Shrink Selection', shortcut: 'Shift+Alt+Left', action: () => console.log('Shrink Selection') },
+        { label: 'Select All', shortcut: 'Ctrl+A', action: () => {} },
+        { label: 'Expand Selection', shortcut: 'Shift+Alt+Right', action: () => {} },
+        { label: 'Shrink Selection', shortcut: 'Shift+Alt+Left', action: () => {} },
         { separator: true },
-        { label: 'Copy Line Up', shortcut: 'Shift+Alt+Up', action: () => console.log('Copy Line Up') },
-        { label: 'Copy Line Down', shortcut: 'Shift+Alt+Down', action: () => console.log('Copy Line Down') }
+        { label: 'Copy Line Up', shortcut: 'Shift+Alt+Up', action: () => {} },
+        { label: 'Copy Line Down', shortcut: 'Shift+Alt+Down', action: () => {} }
       ]
     },
     {
       label: 'View',
       items: [
-        { label: 'Command Palette...', shortcut: 'Ctrl+K', action: () => console.log('Command Palette') },
+        { label: 'Command Palette...', shortcut: 'Ctrl+K', action: onToggleCommandPalette || (() => {}) },
         { separator: true },
-        { label: 'Explorer', shortcut: 'Ctrl+Shift+E', action: () => console.log('Explorer') },
-        { label: 'Search', shortcut: 'Ctrl+Shift+F', action: () => console.log('Search') },
-        { label: 'Source Control', shortcut: 'Ctrl+Shift+G', action: () => console.log('Source Control') },
+        { label: 'Explorer', shortcut: 'Ctrl+Shift+E', action: () => {} },
+        { label: 'Search', shortcut: 'Ctrl+Shift+F', action: () => {} },
+        { label: 'Source Control', shortcut: 'Ctrl+Shift+G', action: () => {} },
         { separator: true },
-        { label: 'Terminal', shortcut: 'Ctrl+`', action: () => console.log('Terminal') },
-        { label: 'Output', shortcut: 'Ctrl+Shift+U', action: () => console.log('Output') }
+        { label: 'Terminal', shortcut: 'Ctrl+`', action: onToggleTerminal || (() => {}) },
+        { label: 'Output', shortcut: 'Ctrl+Shift+U', action: () => {} }
       ]
     },
     {
       label: 'Go',
       items: [
-        { label: 'Back', shortcut: 'Ctrl+Alt+-', action: () => console.log('Back') },
-        { label: 'Forward', shortcut: 'Ctrl+Shift+-', action: () => console.log('Forward') },
+        { label: 'Back', shortcut: 'Ctrl+Alt+-', action: () => {} },
+        { label: 'Forward', shortcut: 'Ctrl+Shift+-', action: () => {} },
         { separator: true },
-        { label: 'Go to File...', shortcut: 'Ctrl+P', action: () => console.log('Go to File') },
-        { label: 'Go to Symbol...', shortcut: 'Ctrl+Shift+O', action: () => console.log('Go to Symbol') },
-        { label: 'Go to Line/Column...', shortcut: 'Ctrl+G', action: () => console.log('Go to Line') }
+        { label: 'Go to File...', shortcut: 'Ctrl+P', action: () => {} },
+        { label: 'Go to Symbol...', shortcut: 'Ctrl+Shift+O', action: () => {} },
+        { label: 'Go to Line/Column...', shortcut: 'Ctrl+G', action: () => {} }
       ]
     },
     {
       label: 'Run',
       items: [
-        { label: 'Start Debugging', shortcut: 'F5', action: () => console.log('Start Debugging') },
-        { label: 'Run Without Debugging', shortcut: 'Ctrl+F5', action: () => console.log('Run Without Debugging') },
+        { label: 'Start Debugging', shortcut: 'F5', action: () => {} },
+        { label: 'Run Without Debugging', shortcut: 'Ctrl+F5', action: () => {} },
         { separator: true },
-        { label: 'Stop', shortcut: 'Shift+F5', action: () => console.log('Stop') },
+        { label: 'Stop', shortcut: 'Shift+F5', action: () => {} },
         { separator: true },
-        { label: 'Run Task...', shortcut: 'Ctrl+Shift+P', action: () => console.log('Run Task') }
+        { label: 'Run Task...', shortcut: 'Ctrl+Shift+P', action: () => {} }
       ]
     },
     {
       label: 'Terminal',
       items: [
-        { label: 'New Terminal', shortcut: 'Ctrl+Shift+`', action: () => console.log('New Terminal') },
-        { label: 'Split Terminal', action: () => console.log('Split Terminal') },
+        { label: 'New Terminal', shortcut: 'Ctrl+Shift+`', action: () => {} },
+        { label: 'Split Terminal', action: () => {} },
         { separator: true },
-        { label: 'Kill Terminal', action: () => console.log('Kill Terminal') }
+        { label: 'Kill Terminal', action: () => {} }
       ]
     },
     {
       label: 'Help',
       items: [
-        { label: 'Welcome', action: () => console.log('Welcome') },
-        { label: 'Documentation', action: () => console.log('Documentation') },
+        { label: 'Welcome', action: () => {} },
+        { label: 'Documentation', action: () => {} },
         { separator: true },
-        { label: 'Keyboard Shortcuts', action: () => console.log('Keyboard Shortcuts') },
-        { label: 'About', action: () => console.log('About') }
+        { label: 'Keyboard Shortcuts', action: () => {} },
+        { label: 'About', action: () => {} }
       ]
     }
   ];

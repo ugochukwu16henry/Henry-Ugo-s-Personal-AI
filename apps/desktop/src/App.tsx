@@ -3,7 +3,8 @@ import { Editor } from '@monaco-editor/react';
 
 // Note: HenryAgent is not available in browser/Tauri environment due to Node.js dependencies
 // For now, we'll handle requests directly without the agent
-let HenryAgent: any = null;
+// HenryAgent integration will be added in the future when Node.js dependencies are available
+
 import { MenuBar } from './components/MenuBar';
 import { saveFileToDisk, openFileFromDisk, saveProjectFiles, type ProjectFile } from './utils/fileOperations';
 import { FileTree } from './components/FileTree';
@@ -459,11 +460,54 @@ Enjoy your project!`
     return `I understand you want help with: "${command}"\n\n📝 I can help you with:\n• Generating HTML/CSS/JavaScript code\n• Creating website templates\n• Building frontend components\n• Writing code snippets\n\n💡 Try asking:\n• "Build a simple website"\n• "Create a JavaScript calculator"\n• "Make a CSS animation"\n• "Generate a contact form"\n\n❓ For a full list of capabilities, ask: "What can you do?"`;
   }, [setCode]);
 
+  // Handle menu actions - defined before useEffects/useMemos that reference them
+  const handleNewFile = useCallback(() => {
+    const newTab: Tab = {
+      id: Date.now().toString(),
+      name: 'Untitled',
+      path: '',
+      icon: <FiCode />
+    };
+    setTabs([...tabs, newTab]);
+    setActiveTabId(newTab.id);
+    setCode('');
+  }, [tabs, setTabs, setActiveTabId, setCode]);
+
+  const handleOpenFile = useCallback(async () => {
+    try {
+      const result = await openFileFromDisk();
+      if (result) {
+        const fileName = result.path.split(/[/\\]/).pop() || 'Untitled';
+        const newTab: Tab = {
+          id: Date.now().toString(),
+          name: fileName,
+          path: result.path,
+          icon: <FiCode />
+        };
+        setTabs([...tabs, newTab]);
+        setActiveTabId(newTab.id);
+        setCode(result.content);
+      }
+    } catch (error: any) {
+      console.error('Failed to open file:', error);
+    }
+  }, [tabs, setTabs, setActiveTabId, setCode]);
+
+  const handleSaveFile = useCallback(async () => {
+    try {
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      const fileName = activeTab?.name || 'untitled.html';
+      await saveFileToDisk(code, fileName);
+    } catch (error: any) {
+      console.error('Failed to save file:', error);
+    }
+  }, [code, tabs, activeTabId]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Command palette: Ctrl+K or Cmd+K
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !e.shiftKey) {
         e.preventDefault();
         setShowCommandPalette(true);
       }
@@ -471,6 +515,21 @@ Enjoy your project!`
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault();
         setShowTerminal(!showTerminal);
+      }
+      // Save: Ctrl+S
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !e.shiftKey) {
+        e.preventDefault();
+        handleSaveFile();
+      }
+      // Open: Ctrl+O
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o' && !e.shiftKey) {
+        e.preventDefault();
+        handleOpenFile();
+      }
+      // New File: Ctrl+N
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        handleNewFile();
       }
       // Escape to close command palette
       if (e.key === 'Escape' && showCommandPalette) {
@@ -480,7 +539,7 @@ Enjoy your project!`
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showTerminal, showCommandPalette]);
+  }, [showTerminal, showCommandPalette, handleSaveFile, handleOpenFile, handleNewFile]);
 
   const handleEditorMount = (editor: any) => {
     editor.onDidChangeCursorPosition((e: any) => {
@@ -492,6 +551,36 @@ Enjoy your project!`
   };
 
   const commandPaletteCommands = useMemo(() => [
+    {
+      id: 'file:new',
+      label: 'New File',
+      category: 'File',
+      shortcut: 'Ctrl+N',
+      action: () => {
+        handleNewFile();
+        setShowCommandPalette(false);
+      }
+    },
+    {
+      id: 'file:open',
+      label: 'Open File...',
+      category: 'File',
+      shortcut: 'Ctrl+O',
+      action: async () => {
+        await handleOpenFile();
+        setShowCommandPalette(false);
+      }
+    },
+    {
+      id: 'file:save',
+      label: 'Save',
+      category: 'File',
+      shortcut: 'Ctrl+S',
+      action: async () => {
+        await handleSaveFile();
+        setShowCommandPalette(false);
+      }
+    },
     {
       id: 'cmd:doc',
       label: '/doc - Generate Documentation',
@@ -538,11 +627,18 @@ Enjoy your project!`
         setShowCommandPalette(false);
       }
     }
-  ], [handleAgentCommand, showTerminal, showAgentPanel, setShowTerminal, setShowAgentPanel, setShowCommandPalette]);
+  ], [handleAgentCommand, showTerminal, showAgentPanel, handleNewFile, handleOpenFile, handleSaveFile, setShowTerminal, setShowAgentPanel, setShowCommandPalette]);
+
 
   return (
     <div className="cursor-app">
-      <MenuBar />
+      <MenuBar 
+        onNewFile={handleNewFile}
+        onOpenFile={handleOpenFile}
+        onSaveFile={handleSaveFile}
+        onToggleTerminal={() => setShowTerminal(!showTerminal)}
+        onToggleCommandPalette={() => setShowCommandPalette(!showCommandPalette)}
+      />
       
       <div className="cursor-layout">
         {/* Left Sidebar */}
@@ -554,7 +650,7 @@ Enjoy your project!`
               if (!existingTab) {
                 const newTab: Tab = {
                   id: Date.now().toString(),
-                  name: path.split('/').pop() || 'Untitled',
+                  name: path.split(/[/\\]/).pop() || 'Untitled',
                   path,
                   icon: <FiCode />
                 };
@@ -562,6 +658,33 @@ Enjoy your project!`
                 setActiveTabId(newTab.id);
               } else {
                 setActiveTabId(existingTab.id);
+              }
+            }}
+            onFileOpen={async (path) => {
+              try {
+                // Read file directly using Tauri FS plugin
+                const { readTextFile } = await import('@tauri-apps/plugin-fs');
+                const content = await readTextFile(path);
+                
+                // Update or create tab for this file
+                const existingTab = tabs.find(t => t.path === path);
+                if (existingTab) {
+                  setActiveTabId(existingTab.id);
+                  setCode(content);
+                } else {
+                  const fileName = path.split(/[/\\]/).pop() || 'Untitled';
+                  const newTab: Tab = {
+                    id: Date.now().toString(),
+                    name: fileName,
+                    path,
+                    icon: <FiCode />
+                  };
+                  setTabs([...tabs, newTab]);
+                  setActiveTabId(newTab.id);
+                  setCode(content);
+                }
+              } catch (err: any) {
+                console.error('Failed to open file:', err);
               }
             }}
           />

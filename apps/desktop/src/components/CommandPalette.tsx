@@ -21,15 +21,15 @@ interface CommandPaletteProps {
 }
 
 const defaultCommands: Command[] = [
-  { id: 'file:new', label: 'New File', category: 'File', action: () => console.log('New File') },
-  { id: 'file:open', label: 'Open File...', category: 'File', action: () => console.log('Open File') },
-  { id: 'file:save', label: 'Save', category: 'File', shortcut: 'Ctrl+S', action: () => console.log('Save') },
-  { id: 'edit:undo', label: 'Undo', category: 'Edit', shortcut: 'Ctrl+Z', action: () => console.log('Undo') },
-  { id: 'edit:redo', label: 'Redo', category: 'Edit', shortcut: 'Ctrl+Y', action: () => console.log('Redo') },
-  { id: 'view:terminal', label: 'Toggle Terminal', category: 'View', shortcut: 'Ctrl+`', action: () => console.log('Toggle Terminal') },
-  { id: 'view:explorer', label: 'Show Explorer', category: 'View', shortcut: 'Ctrl+Shift+E', action: () => console.log('Show Explorer') },
-  { id: 'go:symbol', label: 'Go to Symbol...', category: 'Go', shortcut: 'Ctrl+Shift+O', action: () => console.log('Go to Symbol') },
-  { id: 'go:file', label: 'Go to File...', category: 'Go', shortcut: 'Ctrl+P', action: () => console.log('Go to File') }
+  { id: 'file:new', label: 'New File', category: 'File', action: () => {} },
+  { id: 'file:open', label: 'Open File...', category: 'File', action: () => {} },
+  { id: 'file:save', label: 'Save', category: 'File', shortcut: 'Ctrl+S', action: () => {} },
+  { id: 'edit:undo', label: 'Undo', category: 'Edit', shortcut: 'Ctrl+Z', action: () => {} },
+  { id: 'edit:redo', label: 'Redo', category: 'Edit', shortcut: 'Ctrl+Y', action: () => {} },
+  { id: 'view:terminal', label: 'Toggle Terminal', category: 'View', shortcut: 'Ctrl+`', action: () => {} },
+  { id: 'view:explorer', label: 'Show Explorer', category: 'View', shortcut: 'Ctrl+Shift+E', action: () => {} },
+  { id: 'go:symbol', label: 'Go to Symbol...', category: 'Go', shortcut: 'Ctrl+Shift+O', action: () => {} },
+  { id: 'go:file', label: 'Go to File...', category: 'Go', shortcut: 'Ctrl+P', action: () => {} }
 ];
 
 export function CommandPalette({ isOpen, onClose, commands = defaultCommands }: CommandPaletteProps) {

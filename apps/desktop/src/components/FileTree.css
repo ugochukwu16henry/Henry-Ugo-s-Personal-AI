@@ -88,3 +88,53 @@
   background: #4e4e4e;
 }
 
+.file-tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-tree-open-folder {
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.file-tree-open-folder:hover {
+  background-color: #3e3e42;
+}
+
+.file-tree-loading {
+  color: #858585;
+  font-size: 12px;
+  padding: 8px;
+  font-style: italic;
+}
+
+.file-tree-empty {
+  padding: 20px;
+  text-align: center;
+  color: #858585;
+  font-size: 12px;
+}
+
+.file-tree-open-button {
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: #0e639c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.file-tree-open-button:hover {
+  background: #1177bb;
+}
+

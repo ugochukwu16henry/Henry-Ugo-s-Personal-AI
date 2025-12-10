@@ -3,16 +3,23 @@
  */
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { save, open } from '@tauri-apps/plugin-dialog';
-import { documentDir } from '@tauri-apps/api/path';
+
+// Check if we're in Tauri environment
+function isTauri(): boolean {
+  return typeof window !== 'undefined' && '__TAURI__' in window;
+}
 
 /**
  * Save code to a file using native file dialog
  */
 export async function saveFileToDisk(content: string, defaultName: string = 'untitled.html'): Promise<string | null> {
+  if (!isTauri()) {
+    throw new Error('File operations are only available in Tauri environment');
+  }
+  
   try {
-    const documentsPath = await documentDir();
     const filePath = await save({
-      defaultPath: `${documentsPath}/${defaultName}`,
+      defaultPath: defaultName,
       filters: [
         {
           name: 'Web Files',
@@ -40,10 +47,12 @@ export async function saveFileToDisk(content: string, defaultName: string = 'unt
  * Open a file from disk using native file dialog
  */
 export async function openFileFromDisk(): Promise<{ path: string; content: string } | null> {
+  if (!isTauri()) {
+    throw new Error('File operations are only available in Tauri environment');
+  }
+  
   try {
-    const documentsPath = await documentDir();
     const filePath = await open({
-      defaultPath: documentsPath,
       filters: [
         {
           name: 'Code Files',
@@ -77,13 +86,16 @@ export interface ProjectFile {
 }
 
 export async function saveProjectFiles(files: ProjectFile[]): Promise<string[]> {
+  if (!isTauri()) {
+    throw new Error('File operations are only available in Tauri environment');
+  }
+  
   const savedPaths: string[] = [];
   
   try {
-    const documentsPath = await documentDir();
     // Ask user to select a directory by selecting the first file location
     const firstFilePath = await save({
-      defaultPath: `${documentsPath}/project/index.html`,
+      defaultPath: 'project/index.html',
       filters: [
         {
           name: 'HTML Files',
@@ -102,7 +114,7 @@ export async function saveProjectFiles(files: ProjectFile[]): Promise<string[]> 
 
     // Extract directory path (works for both Windows and Unix)
     const lastSlash = Math.max(firstFilePath.lastIndexOf('/'), firstFilePath.lastIndexOf('\\'));
-    const baseDir = lastSlash >= 0 ? firstFilePath.substring(0, lastSlash) : documentsPath;
+    const baseDir = lastSlash >= 0 ? firstFilePath.substring(0, lastSlash) : '';
 
     for (const file of files) {
       // Handle both forward and backward slashes
