@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CodeEditor } from './components/CodeEditor'
+import './App.css'
 
 function App() {
   const [code, setCode] = useState(`// Welcome to Henry Ugo's Personal AI
@@ -36,4 +37,3 @@ console.log(message)
 }
 
 export default App
-

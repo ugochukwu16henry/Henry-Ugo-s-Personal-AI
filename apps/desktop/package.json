@@ -1,37 +1,28 @@
 {
   "name": "@henry-ai/desktop",
-  "version": "1.0.0",
-  "description": "Desktop application for Henry Ugo's Personal AI (Tauri + React)",
+  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && tauri build",
+    "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:ui": "playwright test",
-    "lint": "eslint src --ext ts,tsx"
+    "tauri": "tauri"
   },
   "dependencies": {
-    "@henry-ai/core": "workspace:*",
-    "@henry-ai/local-ai": "workspace:*",
-    "@henry-ai/rules-engine": "workspace:*",
-    "@monaco-editor/react": "^4.6.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@tauri-apps/api": "^2.0.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2",
+    "@monaco-editor/react": "^4.6.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
-    "@tauri-apps/cli": "^2.0.0",
-    "@types/react": "^18.2.45",
-    "@types/react-dom": "^18.2.18",
-    "@vitejs/plugin-react": "^4.2.1",
-    "monaco-editor": "^0.55.1",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.8",
-    "vitest": "^1.1.0"
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "@tauri-apps/cli": "^2",
+    "monaco-editor": "^0.55.1"
   }
 }
-
