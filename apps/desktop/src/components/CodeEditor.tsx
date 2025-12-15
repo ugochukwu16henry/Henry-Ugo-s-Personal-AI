@@ -1,6 +1,7 @@
-import { Editor } from '@monaco-editor/react'
-import { useRef } from 'react'
+import { Editor, loader } from '@monaco-editor/react'
+import { useRef, useEffect } from 'react'
 import type { editor } from 'monaco-editor'
+import { setupAutocompleteForAllLanguages, initializeAutocomplete } from '../editor/monaco'
 
 interface CodeEditorProps {
   value: string
@@ -18,6 +19,41 @@ export function CodeEditor({
   readOnly = false
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const autocompleteDisposablesRef = useRef<Array<{ dispose: () => void }>>([])
+
+  // Initialize autocomplete when component mounts
+  useEffect(() => {
+    let isCancelled = false
+
+    async function setupMonacoAutocomplete() {
+      try {
+        // Wait for Monaco to be available
+        await loader.init()
+        
+        if (isCancelled) return
+
+        // Initialize autocomplete manager
+        initializeAutocomplete()
+        
+        // Setup autocomplete for all languages
+        const disposables = setupAutocompleteForAllLanguages()
+        autocompleteDisposablesRef.current = disposables
+
+        console.log('✅ Autocomplete initialized for Monaco Editor')
+      } catch (error) {
+        console.error('Failed to setup autocomplete:', error)
+      }
+    }
+
+    setupMonacoAutocomplete()
+
+    // Cleanup on unmount
+    return () => {
+      isCancelled = true
+      autocompleteDisposablesRef.current.forEach(d => d.dispose())
+      autocompleteDisposablesRef.current = []
+    }
+  }, [])
 
   function handleEditorDidMount(editor: editor.IStandaloneCodeEditor) {
     editorRef.current = editor
@@ -42,7 +78,12 @@ export function CodeEditor({
       },
       suggestOnTriggerCharacters: true,
       acceptSuggestionOnCommitCharacter: true,
-      snippetSuggestions: 'top'
+      snippetSuggestions: 'top',
+      // Enable AI autocomplete
+      wordBasedSuggestions: 'matchingDocuments',
+      inlayHints: {
+        enabled: 'on'
+      }
     })
   }
 

@@ -1,165 +1,241 @@
-import type { AgentTask, AgentStep, CodeContext } from './types'
-import { AIRouter } from './ai-router'
-import { CodeIndexer } from './indexer'
-import { ToolRegistry, createStandardTools, type Tool } from './tools'
+import { streamGenerate } from './ai-stream';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { Sandbox, FileDiff } from './security/sandbox';
+import { TestRunner, TestResult } from './security/test-runner';
+import { AgentMemoryManager } from './memory/agent-memory';
+import { EncryptedStorage } from './storage/encrypted-storage';
+import { createStorageAdapter } from './storage/adapter';
+import type { ExecutionResult } from './agent-executor';
 
-/**
- * Agent - Orchestrates AI tasks across the codebase
- * Can handle complex multi-step tasks like "Add OAuth2-protected journal endpoint"
- */
-export class Agent {
-  private router: AIRouter
-  private tasks: Map<string, AgentTask> = new Map()
-  private toolRegistry: ToolRegistry
-
-  constructor(router: AIRouter, _indexer: CodeIndexer) {
-    this.router = router
-    this.toolRegistry = new ToolRegistry()
-    
-    // Register standard tools
-    const standardTools = createStandardTools()
-    standardTools.forEach(tool => this.toolRegistry.register(tool))
-  }
-
-  async deployTask(description: string, context?: CodeContext): Promise<AgentTask> {
-    const task: AgentTask = {
-      id: this.generateTaskId(),
-      description,
-      status: 'pending',
-      steps: [],
-      createdAt: Date.now()
-    }
-
-    this.tasks.set(task.id, task)
-
-    try {
-      task.status = 'in_progress'
-      
-      // Break down task into steps
-      const steps = await this.planTask(description, context)
-      task.steps = steps
-
-      // Execute steps
-      for (const step of steps) {
-        await this.executeStep(step, context)
-        task.steps = [...task.steps] // Update reference
-      }
-
-      task.status = 'completed'
-      task.completedAt = Date.now()
-    } catch (error) {
-      task.status = 'failed'
-      console.error('Task failed:', error)
-    }
-
-    return task
-  }
-
-  private async planTask(description: string, context?: CodeContext): Promise<AgentStep[]> {
-    const availableTools = this.toolRegistry.getToolDescriptions()
-    
-    const prompt = `You are an AI coding agent. Break down this task into steps using available tools: "${description}"
-
-Available tools:
-${availableTools}
-
-Available context:
-${context ? `Files: ${context.files.map(f => f.path).join(', ')}` : 'None'}
-
-Return a JSON array of steps. Each step should specify:
-- action: tool name to use
-- target: file path or parameter
-- parameters: object with tool parameters
-
-Format: [{"action": "read_file", "target": "path/to/file", "parameters": {"path": "path/to/file"}}, ...]`
-
-    const response = await this.router.route({
-      prompt,
-      options: { model: 'local' }
-    })
-
-    // TODO: Parse JSON response and create AgentStep objects
-    // For now, return a simple step
-    try {
-      const steps = JSON.parse(response.content)
-      return steps.map((s: any, i: number) => ({
-        id: `step-${i + 1}`,
-        action: s.action as AgentStep['action'],
-        target: s.target
-      }))
-    } catch {
-      return [{
-        id: 'step-1',
-        action: 'read',
-        target: 'package.json'
-      }]
-    }
-  }
-
-  registerTool(tool: Tool): void {
-    this.toolRegistry.register(tool)
-  }
-
-  private async executeStep(step: AgentStep, _context?: CodeContext): Promise<void> {
-    try {
-      switch (step.action) {
-        case 'read':
-          step.result = await this.readFile(step.target)
-          break
-        case 'write':
-          step.result = await this.writeFile(step.target, '')
-          break
-        case 'edit':
-          step.result = await this.editFile(step.target, '')
-          break
-        case 'test':
-          step.result = await this.runTests(step.target)
-          break
-        case 'document':
-          step.result = await this.generateDocs(step.target)
-          break
-      }
-    } catch (error) {
-      step.error = error instanceof Error ? error.message : 'Unknown error'
-      throw error
-    }
-  }
-
-  private async readFile(_path: string): Promise<string> {
-    // TODO: Implement file reading
-    return ''
-  }
-
-  private async writeFile(_path: string, _content: string): Promise<string> {
-    // TODO: Implement file writing with sandboxing
-    return 'File written'
-  }
-
-  private async editFile(_path: string, _changes: string): Promise<string> {
-    // TODO: Implement file editing with undo stack
-    return 'File edited'
-  }
-
-  private async runTests(_path: string): Promise<string> {
-    // TODO: Implement test execution
-    return 'Tests passed'
-  }
-
-  private async generateDocs(_path: string): Promise<string> {
-    // TODO: Implement documentation generation
-    return 'Docs generated'
-  }
-
-  private generateTaskId(): string {
-    return `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  }
-
-  getTask(id: string): AgentTask | undefined {
-    return this.tasks.get(id)
-  }
-
-  getAllTasks(): AgentTask[] {
-    return Array.from(this.tasks.values())
-  }
+export interface EditOptions {
+  showDiff?: boolean;
+  autoTest?: boolean;
+  requireApproval?: boolean;
+  rollbackOnTestFailure?: boolean;
 }
 
+export class HenryAgent {
+  private model: string = process.env.OLLAMA_MODEL || 'codellama'; // default local
+  private sandbox: Sandbox;
+  private testRunner: TestRunner;
+  private memory: AgentMemoryManager | null = null;
+  private memoryInitialized: boolean = false;
+
+  constructor() {
+    this.sandbox = new Sandbox();
+    this.testRunner = new TestRunner(this.sandbox);
+  }
+
+  /**
+   * Initialize memory system (call this before using agent)
+   */
+  async initializeMemory(encryptionPassphrase?: string): Promise<void> {
+    if (this.memoryInitialized) {
+      return;
+    }
+
+    const storage = new EncryptedStorage(createStorageAdapter());
+    await storage.initialize(encryptionPassphrase);
+    
+    this.memory = new AgentMemoryManager(storage);
+    await this.memory.initialize();
+    this.memoryInitialized = true;
+  }
+
+  async plan(task: string): Promise<string[]> {
+    // Get context from memory if available
+    let memoryContext = '';
+    if (this.memory) {
+      memoryContext = this.memory.getContextForTask(task);
+    }
+
+    const prompt = `You are Henry's AI coding assistant. Break this into steps:
+
+Task: ${task}
+
+${memoryContext ? `Context from past interactions:\n${memoryContext}\n\n` : ''}Rules: Use MVC, validate input, secure with JWT, document with Swagger.
+
+Output JSON array of strings.`;
+
+    let fullResponse = '';
+
+    for await (const token of streamGenerate(prompt, { model: this.model })) {
+      fullResponse += token;
+    }
+
+    try {
+      return JSON.parse(fullResponse);
+    } catch {
+      // Fallback: split by newline
+      return fullResponse.split('\n').filter(l => l.trim());
+    }
+  }
+
+  async edit(filePath: string, instruction: string, options: EditOptions = {}): Promise<FileDiff> {
+    const {
+      showDiff = true,
+      autoTest = true,
+      requireApproval = true,
+      rollbackOnTestFailure = true
+    } = options;
+
+    // Read current file
+    let currentCode = '';
+    try {
+      currentCode = await fs.readFile(filePath, 'utf-8');
+    } catch (error: any) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+      // File doesn't exist, will be created
+    }
+    
+    const prompt = `FILE: ${filePath}
+
+CURRENT:
+
+\`\`\`js
+${currentCode}
+\`\`\`
+
+INSTRUCTION: ${instruction}
+
+RULES: Follow Henry's MVC style. Use async, validate input, return JSON.
+
+RETURN ONLY FULL UPDATED FILE.`;
+
+    let code = '';
+
+    for await (const token of streamGenerate(prompt, { model: this.model })) {
+      code += token;
+    }
+
+    // Extract code block
+    const match = code.match(/```(?:js|javascript|typescript)?\n([\s\S]*?)(?:```|$)/);
+    const newCode = match ? match[1].trim() : code.trim();
+
+    // Stage the edit in sandbox
+    await this.sandbox.stageEdit({
+      filePath,
+      newContent: newCode,
+      reason: instruction
+    });
+
+    // Generate and show diff
+    const diff = await this.sandbox.previewEdit(filePath, newCode);
+
+    if (showDiff) {
+      console.log(this.sandbox.formatDiffForDisplay(diff));
+    }
+
+    // If requireApproval is false or not set, apply automatically
+    // In production, this would wait for user approval
+    if (!requireApproval || options.requireApproval === false) {
+      if (autoTest) {
+        const { testResult, applied } = await this.testRunner.applyEditWithTest(
+          filePath,
+          rollbackOnTestFailure
+        );
+
+        if (!applied) {
+          throw new Error(`Edit rejected: Tests failed after applying changes.\n${testResult.output}`);
+        }
+
+        if (!testResult.success) {
+          console.warn('⚠️  Tests passed but with warnings');
+        } else {
+          console.log('✅ Tests passed! Changes applied.');
+        }
+      } else {
+        await this.sandbox.applyEdit(filePath, true);
+      }
+    }
+
+    return diff;
+  }
+
+  /**
+   * Get the generated edit without applying it
+   */
+  async previewEdit(filePath: string, instruction: string): Promise<FileDiff> {
+    return this.edit(filePath, instruction, { 
+      showDiff: true, 
+      requireApproval: true, 
+      autoTest: false 
+    });
+  }
+
+  /**
+   * Apply a previously staged edit
+   */
+  async applyStagedEdit(filePath: string, autoTest: boolean = true): Promise<TestResult | null> {
+    if (autoTest) {
+      const { testResult, applied } = await this.testRunner.applyEditWithTest(filePath, true);
+      if (!applied) {
+        throw new Error(`Edit rejected: Tests failed.\n${testResult.output}`);
+      }
+      return testResult;
+    } else {
+      await this.sandbox.applyEdit(filePath, true);
+      return null;
+    }
+  }
+
+  /**
+   * Discard a staged edit
+   */
+  discardEdit(filePath: string): void {
+    this.sandbox.discardEdit(filePath);
+  }
+
+  /**
+   * Rollback a file to its previous state
+   */
+  async rollback(filePath: string): Promise<void> {
+    await this.sandbox.rollback(filePath);
+  }
+
+  async executeTask(options: { goal: string; cwd?: string; autoExecute?: boolean }): Promise<ExecutionResult> {
+    const { TaskExecutor } = await import('./agent-executor');
+    
+    const executor = new TaskExecutor(this, this.sandbox, this.testRunner);
+    
+    try {
+      const result = await executor.executeTask({
+        goal: options.goal,
+        cwd: options.cwd || process.cwd()
+      });
+
+      // Save to memory
+      if (this.memory) {
+        await this.memory.addConversation({
+          task: options.goal,
+          steps: [],
+          result: result.success ? 'success' : 'failed',
+          filesModified: result.filesModified
+        });
+      }
+
+      return result;
+    } catch (error: any) {
+      // Save failed attempt to memory
+      if (this.memory) {
+        await this.memory.addConversation({
+          task: options.goal,
+          steps: [],
+          result: 'failed',
+          filesModified: []
+        });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get memory manager (for advanced usage)
+   */
+  getMemory(): AgentMemoryManager | null {
+    return this.memory;
+  }
+}

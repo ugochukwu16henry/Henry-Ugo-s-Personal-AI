@@ -1,43 +1,49 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander'
-import chalk from 'chalk'
+import { HenryAgent, executeCommand, defaultCommandRegistry } from '@henry-ai/core'
 
-const program = new Command()
+const input = process.argv.slice(2).join(' ')
 
-program
-  .name('henry')
-  .description("Henry Ugo's Personal AI - CLI Tool")
-  .version('1.0.0')
-
-program
-  .command('index')
-  .description('Index the current codebase')
-  .option('-p, --path <path>', 'Path to index', process.cwd())
-  .action(async (options) => {
-    console.log(chalk.blue('Indexing codebase at:'), options.path)
-    // TODO: Implement indexing
+if (!input) {
+  console.error('Usage: henry "add login endpoint" or henry "/doc Add Swagger to /wellness"')
+  console.error('\nAvailable commands:')
+  defaultCommandRegistry.getAll().forEach(cmd => {
+    console.error(`  /${cmd.name} - ${cmd.description}`)
   })
+  process.exit(1)
+}
 
-program
-  .command('ask')
-  .description('Ask the AI a question')
-  .argument('<question>', 'Question to ask')
-  .option('-l, --local', 'Use local AI model')
-  .action(async (question, options) => {
-    console.log(chalk.blue('Question:'), question)
-    console.log(chalk.gray('Using local AI:'), options.local ? 'Yes' : 'No')
-    // TODO: Implement AI query
-  })
+async function main() {
+  const agent = new HenryAgent()
+  await agent.initializeMemory()
+  
+  try {
+    // Check if input is a command
+    if (defaultCommandRegistry.isCommand(input)) {
+      // Execute command
+      const result = await executeCommand(input, agent, { cwd: process.cwd() })
+      
+      console.log(result.output)
+      
+      if (!result.success) {
+        process.exit(1)
+      }
+    } else {
+      // Execute as regular task
+      const result = await agent.executeTask({ 
+        goal: input,
+        cwd: process.cwd()
+      })
+      
+      if (!result.success) {
+        console.error(`❌ Task failed: ${result.error}`)
+        process.exit(1)
+      }
+    }
+  } catch (error: any) {
+    console.error('❌ Error:', error.message)
+    process.exit(1)
+  }
+}
 
-program
-  .command('task')
-  .description('Deploy a task to the AI agent')
-  .argument('<task>', 'Task description')
-  .action(async (task) => {
-    console.log(chalk.blue('Task:'), task)
-    // TODO: Implement task delegation
-  })
-
-program.parse()
-
+main()

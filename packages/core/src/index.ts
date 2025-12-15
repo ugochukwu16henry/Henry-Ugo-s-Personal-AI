@@ -1,3 +1,12 @@
-// Placeholder
-
-export const hello = () => "Henry Ugo's Personal AI core ready!";
+export * from './agent';
+export * from './indexer';
+export * from './security';
+export * from './storage';
+export * from './memory';
+export * from './sync';
+export * from './autocomplete';
+export * from './autocomplete-provider';
+export * from './agent-executor';
+export * from './commands';
+export * from './ai-router';
+export * from './ai-stream';
