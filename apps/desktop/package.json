@@ -19,9 +19,16 @@
     "@henry-ai/local-ai": "workspace:*",
     "@henry-ai/rules-engine": "workspace:*",
     "@monaco-editor/react": "^4.6.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.4.2",
+    "@tauri-apps/plugin-fs": "^2.4.4",
+    "@tauri-apps/plugin-os": "^2.3.2",
+    "@tauri-apps/plugin-shell": "^2.3.3",
+    "diff": "^8.0.2",
     "react": "^18.2.0",
+    "react-diff-view": "^3.3.2",
     "react-dom": "^18.2.0",
-    "@tauri-apps/api": "^2.0.0"
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
@@ -31,7 +38,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "monaco-editor": "^0.55.1",
     "typescript": "^5.3.3",
-    "vite": "^5.0.8",
+    "vite": "^5.4.21",
     "vitest": "^1.1.0"
   }
 }
